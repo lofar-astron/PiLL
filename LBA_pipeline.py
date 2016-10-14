@@ -12,7 +12,7 @@ _version = '1.0'
 
 os.system('clear')
 print '\033[30;1m################################################'
-print '## LOFAR HBA calibration and imaging pipeline ##'
+print '## LOFAR LBA calibration and imaging pipeline ##'
 print '################################################\033[0m'
 
 def add_coloring_to_emit_ansi(fn):
