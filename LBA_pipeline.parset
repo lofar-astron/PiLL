@@ -1,6 +1,6 @@
-#############################################################################
-## LOFAR LBA calibration parset -- calibrator only -- direction-independet ##
-#############################################################################
+##############################################################################
+## LOFAR LBA calibration parset -- calibrator only -- direction-independent ##
+##############################################################################
 
 ### Steps
 pipeline.steps = [listcal,listtemp,fixcal,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal2,applyFR,smooth2,smoothcal2,globaldb2,h5parm2,losotoclock,h5parmexp2,renamesol3,renamesol4,listsol2]
