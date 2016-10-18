@@ -182,8 +182,8 @@ if __name__=='__main__':
 				pass
 			answer = raw_input(prompt)      
 			pass
-		logging.info('Cleaning working directory \033[5m...')
-		os.system('rm -rfv ' + working_directory)
+		#logging.info('Cleaning working directory \033[5m...')
+		#os.system('rm -rfv ' + working_directory)
 		pass
 	os.system('mkdir -pv ' + working_directory)
 	
