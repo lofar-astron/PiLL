@@ -3,8 +3,8 @@
 ##############################################################################
 
 ### Steps (first line if you have to "fix" something)
-#pipeline.steps = [listcal,listtemp,fixcal,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoamp,losotoclock,h5parmexp2,renamesol3,renamesol4,listsol2]
-pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoamp,losotoclock,h5parmexp2,renamesol3,renamesol4,listsol2]
+#pipeline.steps = [listcal,listtemp,fixcal,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,smooth,smoothcal,globaldb2,h5parm2,losotoamp,losotoclock,h5parmexp2,renamesol3,renamesol4,listsol2]
+pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,smooth,smoothcal,globaldb2,h5parm2,losotoamp,losotoclock,h5parmexp2,renamesol3,renamesol4,listsol2]
 
 ### Parameter setup -- observational details
 !calibrator           = 3C295
@@ -273,7 +273,7 @@ losotoFR.control.executable                               =   {{ lofar_directory
 losotoFR.control.parsetasfile                             =   True
 losotoFR.control.args_format                              =   losoto
 losotoFR.argument.flags                                   =   [-v,h5parm.output.mapfile]
-losotoFR.argument.LoSoTo.Steps                            =   [plotA1, plotA2, plotA3, flag, flagextend, merge, plotPi, faraday, plotFR, residuals, plotPr]
+losotoFR.argument.LoSoTo.Steps                            =   [reweight, plotA1, plotA2, plotA3, flag, flagextend, merge, plotPi, faraday, plotFR, residuals, plotPr]
 losotoFR.argument.LoSoTo.Solset                           =   [sol000]
 losotoFR.argument.LoSoTo.Soltab                           =   []
 losotoFR.argument.LoSoTo.SolType                          =   []
@@ -281,6 +281,10 @@ losotoFR.argument.LoSoTo.ant                              =   []
 losotoFR.argument.LoSoTo.pol                              =   [XX, YY]
 losotoFR.argument.LoSoTo.dir                              =   []
 losotoFR.argument.LoSoTo.Ncpu                             =   {{ max_per_node }}
+losotoFR.LoSoTo.Steps.reweight.Operation                  =   REWEIGHT
+losotoFR.LoSoTo.Steps.reweight.WeightVal                  =   0.
+losotoFR.LoSoTo.Steps.reweight.ant                        =   [CS031LBA, RS409LBA]
+losotoFR.LoSoTo.Steps.reweight.FlagBad                    =   False
 losotoFR.argument.LoSoTo.Steps.plotA1.Operation           =   PLOT
 losotoFR.argument.LoSoTo.Steps.plotA1.Soltab              =   [sol000/amplitude000]
 losotoFR.argument.LoSoTo.Steps.plotA1.freq.minmax         =   [0,100e6,50]
@@ -416,7 +420,7 @@ losotoamp.control.executable                              =   {{ lofar_directory
 losotoamp.control.parsetasfile                            =   True
 losotoamp.control.args_format                             =   losoto
 losotoamp.argument.flags                                  =   [-v,h5parm2.output.mapfile]
-losotoamp.argument.LoSoTo.Steps                           =   [plotA1, plotA2, plotA3, flag, flagextend, merge, duplicateAbkp, plotAi1, plotAi2, plotAi3, duplicateA, smoothA, plotAs, plotAs2, residualA, plotAr1, plotAr2, plotAr3]
+losotoamp.argument.LoSoTo.Steps                           =   [reweight, plotA1, plotA2, plotA3, flag, flagextend, merge, duplicateAbkp, plotAi1, plotAi2, plotAi3, duplicateA, smoothA, plotAs, plotAs2, residualA, plotAr1, plotAr2, plotAr3]
 losotoamp.argument.LoSoTo.Solset                          =   [sol000]
 losotoamp.argument.LoSoTo.Soltab                          =   []
 losotoamp.argument.LoSoTo.SolType                         =   []
@@ -424,6 +428,10 @@ losotoamp.argument.LoSoTo.ant                             =   []
 losotoamp.argument.LoSoTo.pol                             =   [XX, YY]
 losotoamp.argument.LoSoTo.dir                             =   []
 losotoamp.argument.LoSoTo.Ncpu                            =   {{ max_per_node }}
+losotoamp.LoSoTo.Steps.reweight.Operation                 =   REWEIGHT
+losotoamp.LoSoTo.Steps.reweight.WeightVal                 =   0.
+losotoamp.LoSoTo.Steps.reweight.ant                       =   [CS031LBA, RS409LBA]
+losotoamp.LoSoTo.Steps.reweight.FlagBad                   =   False
 losotoamp.argument.LoSoTo.Steps.plotA1.Operation          =   PLOT
 losotoamp.argument.LoSoTo.Steps.plotA1.Soltab             =   [sol000/amplitude000]
 losotoamp.argument.LoSoTo.Steps.plotA1.freq.minmax        =   [0,100e6,50]
@@ -556,7 +564,7 @@ losotoclock.control.executable                            =   {{ lofar_directory
 losotoclock.control.parsetasfile                          =   True
 losotoclock.control.args_format                           =   losoto
 losotoclock.argument.flags                                =   [-v,h5parm2.output.mapfile]
-losotoclock.argument.LoSoTo.Steps                         =   [duplicatePbkp, plotPi1, plotPi2, plotPi3, ct, plotCLOCK, plotTEC, residuals, plotPr1, plotPr2, plotPr3, smoothP] 
+losotoclock.argument.LoSoTo.Steps                         =   [duplicatePbkp, plotPi1, plotPi2, plotPi3, ct, plotCLOCK, plotTEC, plotTEC3, residuals, plotPr1, plotPr2, plotPr3, smoothP] 
 losotoclock.argument.LoSoTo.Solset                        =   [sol000]
 losotoclock.argument.LoSoTo.Soltab                        =   []
 losotoclock.argument.LoSoTo.SolType                       =   []
