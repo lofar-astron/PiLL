@@ -14,7 +14,7 @@ pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,
 ### Parameter setup -- main directories
 !archive              = /home/alex/LOFAR/LBA/A2069                        ## specify the directory of your observation (parent directory, not really needed)
 !working_directory    = input.output.working_directory                    ## replace it with the working_directory of the genericpipeline or use the LOFAR_pipeline.py script
-!job_directory        = input.output.job_directory                        ## replace it with the job_directory (typically working_directory/parset) of the genericpipeline or use the LOFAR_pipeline.py script
+!job_directory        = input.output.job_dir                              ## replace it with the job_directory (typically working_directory/parset) of the genericpipeline or use the LOFAR_pipeline.py script
 !lofar_directory      = $LOFARROOT                                        ## replace it with the directory of your LOFAR software (optimized for local LOFAR installations) or use the LOFAR_pipeline.py script
 !local_directory      = $PWD                                              ## replace it with the directory where your scripts and plugins are
 
