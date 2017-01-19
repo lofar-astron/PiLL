@@ -50,36 +50,20 @@ def create_clusterdesc(working_directory):
     
     
 def create_pipeline_config(working_directory):
-
+     
 	try:
-		lofarroot = os.environ['LOFARROOT']
-		local_dir = os.getcwd()
-		pass
-	except KeyError:
-		logging.error('The LOFAR root directory could not be determined. Please check your installation.')
-		sys.exit(1)
-		pass
-	      
-	try:
-		default_config      = lofarroot + '/share/pipeline/pipeline.cfg'
+		default_config      = os.environ['LOFARROOT'] + '/share/pipeline/pipeline.cfg'
 		default_runtime     = os.popen('grep runtime_directory  ' + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
 		default_working     = os.popen('grep working_directory  ' + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
-		default_recipes     = os.popen('grep recipe_directories ' + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
 		default_clusterdesc = os.popen('grep clusterdesc '        + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
 		default_logfile     = os.popen('grep log_file '           + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
 		default_xml         = os.popen('grep xml_stat_file '      + default_config + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
 		pipeline_cfg        = working_directory + '/pipeline.cfg'
 		with open(pipeline_cfg, 'w') as outfile:
 			with open(default_config, 'r') as infile:
-				outfile.write('[DEFAULT]\n')
-				outfile.write('local_directory = ' + local_dir + '\n')
 				for line in infile:
-					if '[DEFAULT]' in line:
-						continue
-						pass
 					outfile.write(line.replace(default_runtime, working_directory)\
 							  .replace(default_working, '%(runtime_directory)s')\
-							  .replace(default_recipes, '[%(pythonpath)s/lofarpipe/recipes,%(local_directory)s]')\
 							  .replace(default_clusterdesc, '%(working_directory)s/pipeline.clusterdesc')\
 							  .replace(default_logfile, '%(runtime_directory)s/%(job_name)s/logs/%(start_time)s/pipeline.log')\
 							  .replace(default_xml, '%(runtime_directory)s/%(job_name)s/logs/%(start_time)s/statistics.xml'))
@@ -102,46 +86,6 @@ def create_pipeline_config(working_directory):
 		sys.exit(1)
 		pass
 	
-	infile.close()
-	outfile.close()
-	
-	pass
-
-def create_pipeline_parset(working_directory):
-      
-	pipeline_parset = working_directory + '/pipeline.parset'
-	local_directory = os.getcwd()
-	#job_directory   = working_directory + '/' + os.path.splitext(os.path.basename(args[0]))[0]
-	job_directory   = working_directory + '/pipeline'
-	lofarroot       = os.environ['LOFARROOT']
-	archive         = os.popen('grep !archive ' + args[0] + ' | cut -f2- -d"="').readlines()[0].rstrip('\n').replace(' ','')
-	
-	
-	try:
-		max_per_node = os.popen('nproc').readlines()[0].rstrip('\n')
-		pass
-	except IndexError:
-		logging.error('The number of available CPUs could not be determined. Please check your installation of nproc.')
-		sys.exit(1)
-		pass
-	     
-	try:
-		with open(pipeline_parset, 'w') as outfile:
-			with open(args[0], 'r') as infile:
-				for line in infile:
-					outfile.write(line.replace('input.output.working_directory', working_directory)\
-							  .replace('input.output.job_dir', job_directory)\
-							  .replace('input.output.local_directory', local_directory)\
-							  .replace('input.output.lofarroot', lofarroot))
-					pass
-				pass
-			pass
-		      
-	except IOError or IndexError:
-		logging.error('LOFAR pipeline configuration not found. Please check your installation.')
-		sys.exit(1)
-		pass
-	      
 	infile.close()
 	outfile.close()
 	
@@ -184,7 +128,7 @@ if __name__=='__main__':
 			pass
 		#logging.info('Cleaning working directory \033[5m...')
 		#os.system('rm -rfv ' + working_directory)
-		pass
+		#pass
 	os.system('mkdir -pv ' + working_directory)
 	
 	# creating cluster description file
@@ -195,8 +139,8 @@ if __name__=='__main__':
 	create_pipeline_config(working_directory)
 	logging.info('Created pipeline configuration file: \033[34m' + working_directory + '/pipeline.cfg')
 
-	# creating pipeline parameter set
-	create_pipeline_parset(working_directory)
+	## creating pipeline parameter set
+	os.system('cp ' + args[0] + ' ' + working_directory + '/pipeline.parset')
 	logging.info('Created pipeline configuration file: \033[34m' + working_directory + '/pipeline.parset')
 
 	# starting of generic pipeline
