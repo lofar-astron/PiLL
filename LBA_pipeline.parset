@@ -401,8 +401,10 @@ listsol.control.pattern                                      =   sol000_instrume
 ### --- Apply FaradyRotation correction
 applyFR.control.type                                         =   dppp
 applyFR.control.inplace                                      =   True
+applyFR.control.outputkey                                    =   
 applyFR.argument.msin                                        =   flagcal.output.mapfile
 applyFR.argument.msin.datacolumn                             =   CORRECTED_DATA
+applyFR.argument.msout                                       =   .
 applyFR.argument.msout.datacolumn                            =   CORRECTED_DATA
 applyFR.argument.steps                                       =   [correct]
 applyFR.argument.correct.type                                =   correct
