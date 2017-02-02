@@ -193,7 +193,7 @@ lintocirc.argument.flags                                     =   [-w,-i,listcolu
 ### --- Smooth the data (baseline-based)
 smooth.control.type                                          =   executable_args
 smooth.control.max_per_node                                  =   {{ chunks }}
-smooth.control.executable                                    =   {{ scripts }}/BLavg.py
+smooth.control.executable                                    =   {{ scripts }}/BLsmooth.py
 smooth.argument.flags                                        =   [-r,-w,-i,CORRECTED_DATA,-o,SMOOTHED_DATA,flagcal.output.mapfile]
 
 ### Step: 09a
