@@ -5,8 +5,8 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps (first line if you have to "fix" something)
-#pipeline.steps = [listcal,listtemp,fixcal,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoclockamp,h5parmexp2,renamesol3,renamesol4,listsol2]
-pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbclock,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoclockamp,h5parmexp2,renamesol3,renamesol4,listsol2]
+#pipeline.steps = [listcal,listtemp,fixcal,flagcal,listFR,listcolumn,listinst,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoclockamp,h5parmexp2,renamesol3,renamesol4,listsol2]
+pipeline.steps = [listcal,listtemp,flagcal,listFR,listcolumn,listinst,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,h5parm,losotoFR,h5parmexp,renamesol,renamesol2,listsol,beamcal,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoclockamp,h5parmexp2,renamesol3,renamesol4,listsol2]
 
 ### Parameter setup -- observational details
 !calibrator           = 3C295
@@ -74,16 +74,16 @@ flagcal.control.type                                         =   dppp
 flagcal.control.max_per_node                                 =   {{ chunks }}
 flagcal.control.error_tolerance                              =   {{ error_tolerance }}
 flagcal.argument.msin                                        =   listcal.output.mapfile
-flagcal.argument.msin.baseline                               =   *&&
+flagcal.argument.msin.baseline                               =   [CR]S*&
 flagcal.argument.msin.datacolumn                             =   DATA
 flagcal.argument.msout.datacolumn                            =   DATA
 flagcal.argument.msout.writefullresflag                      =   False
-flagcal.argument.steps                                       =   [filter,flagelevation,flag,avg]
+flagcal.argument.steps                                       =   [filter,flagelevation,flag,avg,count]
 flagcal.argument.filter.type                                 =   filter
-flagcal.argument.filter.baseline                             =   CS*&&;CS*&&RS*;RS*&&{{ bad_stations }}
+flagcal.argument.filter.baseline                             =   CS*&;CS*&RS*;RS*&{{ bad_stations }}
 flagcal.argument.filter.remove                               =   True
 flagcal.argument.flagelevation.type                          =   preflagger
-flagcal.argument.flagelevation.elevation                     =   0deg..35deg
+flagcal.argument.flagelevation.elevation                     =   0deg..30deg
 flagcal.argument.flag.type                                   =   aoflagger
 flagcal.argument.flag.keepstatistics                         =   True
 flagcal.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
@@ -93,11 +93,11 @@ flagcal.argument.avg.timestep                                =   {{ average_time
 
 ### Step: 04a
 ### --- Update mapfile for calibrator clock tables
-listclock.control.kind                                       =   plugin
-listclock.control.type                                       =   changeMapfile
-listclock.control.mapfile_in                                 =   flagcal.output.mapfile
-listclock.control.join_files                                 =   instrument-clock
-listclock.control.newname                                    =   listclock.mapfile
+# listclock.control.kind                                       =   plugin
+# listclock.control.type                                       =   changeMapfile
+# listclock.control.mapfile_in                                 =   flagcal.output.mapfile
+# listclock.control.join_files                                 =   instrument-clock
+# listclock.control.newname                                    =   listclock.mapfile
 
 ### Step: 04b
 ### --- Update mapfile for calibrator FR tables
@@ -125,26 +125,26 @@ listinst.control.newname                                     =   listinst.mapfil
 
 ### Step: 05a
 ### --- Creation of fake-parmdbs (clock)
-parmdbclock.control.type                                     =   python-calibrate-stand-alone
-parmdbclock.control.error_tolerance                          =   {{ error_tolerance }}
-parmdbclock.argument.force                                   =   True                                       # force replaceing of parmDB and skyDB
-parmdbclock.argument.observation                             =   flagcal.output.mapfile                     # run on files generated by flag_compress step
-parmdbclock.argument.parmdb-name                             =   instrument-clock
-parmdbclock.argument.catalog                                 =   {{ skymodels }}/{{ calibrator }}.skymodel  # which skymodel to use
-parmdbclock.argument.numthreads                              =   {{ max_per_node }}
-parmdbclock.argument.Strategy.ChunkSize                      =   500
-parmdbclock.argument.Strategy.Steps                          =   [solve]
-parmdbclock.argument.Step.solve.Operation                    =   SOLVE
-parmdbclock.argument.Step.solve.Model.Sources                =   [@MODEL_DATA]
-parmdbclock.argument.Step.solve.Model.Cache.Enable           =   T
-parmdbclock.argument.Step.solve.Model.Gain.Enable            =   T
-parmdbclock.argument.Step.solve.Model.Clock.Enable           =   T
-parmdbclock.argument.Step.solve.Solve.Parms                  =   ["Gain:0:0:*", "Gain:1:1:*", "Clock:*"]
-parmdbclock.argument.Step.solve.Solve.CellChunkSize          =   500
-parmdbclock.argument.Step.solve.Solve.PropagateSolutions     =   F
-parmdbclock.argument.Step.solve.Solve.CellSize.Freq          =   1
-parmdbclock.argument.Step.solve.Solve.CellSize.Time          =   1
-parmdbclock.argument.Step.solve.Solve.Options.MaxIter        =   1
+# parmdbclock.control.type                                     =   python-calibrate-stand-alone
+# parmdbclock.control.error_tolerance                          =   {{ error_tolerance }}
+# parmdbclock.argument.force                                   =   True                                       # force replaceing of parmDB and skyDB
+# parmdbclock.argument.observation                             =   flagcal.output.mapfile                     # run on files generated by flag_compress step
+# parmdbclock.argument.parmdb-name                             =   instrument-clock
+# parmdbclock.argument.catalog                                 =   {{ skymodels }}/{{ calibrator }}.skymodel  # which skymodel to use
+# parmdbclock.argument.numthreads                              =   {{ max_per_node }}
+# parmdbclock.argument.Strategy.ChunkSize                      =   500
+# parmdbclock.argument.Strategy.Steps                          =   [solve]
+# parmdbclock.argument.Step.solve.Operation                    =   SOLVE
+# parmdbclock.argument.Step.solve.Model.Sources                =   [@MODEL_DATA]
+# parmdbclock.argument.Step.solve.Model.Cache.Enable           =   T
+# parmdbclock.argument.Step.solve.Model.Gain.Enable            =   T
+# parmdbclock.argument.Step.solve.Model.Clock.Enable           =   T
+# parmdbclock.argument.Step.solve.Solve.Parms                  =   ["Gain:0:0:*", "Gain:1:1:*", "Clock:*"]
+# parmdbclock.argument.Step.solve.Solve.CellChunkSize          =   500
+# parmdbclock.argument.Step.solve.Solve.PropagateSolutions     =   F
+# parmdbclock.argument.Step.solve.Solve.CellSize.Freq          =   1
+# parmdbclock.argument.Step.solve.Solve.CellSize.Time          =   1
+# parmdbclock.argument.Step.solve.Solve.Options.MaxIter        =   1
 
 ### Step: 05b
 ### --- Creation of fake-parmdbs (Faraday Rotation)
@@ -232,19 +232,20 @@ smoothcal.argument.msout                                     =   .
 smoothcal.argument.msin.datacolumn                           =   SMOOTHED_DATA
 smoothcal.argument.msin.baseline                             =   [CR]S*&
 smoothcal.argument.msout.datacolumn                          =   CORRECTED_DATA
-smoothcal.argument.steps                                     =   [filter,gaincal]
-smoothcal.argument.filter.blrange                            =   [1000, 1e30]
+smoothcal.argument.steps                                     =   [gaincal,count]
 smoothcal.argument.gaincal.type                              =   gaincal
 smoothcal.argument.gaincal.parmdb                            =   listinst.output.mapfile
 smoothcal.argument.gaincal.caltype                           =   diagonal
-smoothcal.argument.gaincal.maxiter                           =   100
+smoothcal.argument.gaincal.maxiter                           =   500
 smoothcal.argument.gaincal.sourcedb                          =   listsourcedb.output.mapfile 
+smoothcal.argument.gaincal.sources                           =   []
 smoothcal.argument.gaincal.usebeammodel                      =   True
 smoothcal.argument.gaincal.usechannelfreq                    =   False
 smoothcal.argument.gaincal.beammode                          =   array_factor
 smoothcal.argument.gaincal.nchan                             =   1
 smoothcal.argument.gaincal.solint                            =   1
 smoothcal.argument.gaincal.propagatesolutions                =   False
+smoothcal.argument.gaincal.blrange                           =   [2000,1e30]
 
 ### Step: 11
 ### --- Creating VDS files
@@ -275,9 +276,9 @@ globaldbFR.argument.flags                                    =   [-v,-d,findvds.
 
 ### Step: 13c
 ### --- Create globaldb out of the VDS files for the instrument-clock tables
-globaldbclock.control.type                                   =   executable_args
-globaldbclock.control.executable                             =   {{ lofar_directory }}/bin/parmdb_collector.py
-globaldbclock.argument.flags                                 =   [-v,-d,findvds.output.mapfile,-p,instrument-clock,-g,outputkey]
+# globaldbclock.control.type                                   =   executable_args
+# globaldbclock.control.executable                             =   {{ lofar_directory }}/bin/parmdb_collector.py
+# globaldbclock.argument.flags                                 =   [-v,-d,findvds.output.mapfile,-p,instrument-clock,-g,outputkey]
 
 ### Step: 14a
 ### --- Import globaldb to h5parm
@@ -416,7 +417,7 @@ applyFR.control.error_tolerance                              =   {{ error_tolera
 applyFR.argument.msin                                        =   flagcal.output.mapfile
 applyFR.argument.msin.datacolumn                             =   CORRECTED_DATA
 applyFR.argument.msout.datacolumn                            =   CORRECTED_DATA
-applyFR.argument.steps                                       =   [correct]
+applyFR.argument.steps                                       =   [correct,count]
 applyFR.argument.correct.type                                =   correct
 applyFR.argument.correct.parmdb                              =   listsol.output.mapfile
 applyFR.argument.correct.correction                          =   RotationMeasure
@@ -693,7 +694,7 @@ losotoclockamp.argument.LoSoTo.Steps.smoothP.Mode            =   median
 ### --- Export bandpass, phases and clock from h5parm to globaldb-clock
 h5parmexp2.control.type                                      =   executable_args
 h5parmexp2.control.executable                                =   {{ scripts }}/H5parm_exporter.py
-h5parmexp2.argument.flags                                    =   [-v,-c,-t,"amplitudeSmooth000;phaseOrig000;clock000",h5parm2.output.mapfile,globaldbclock.output.mapfile]
+h5parmexp2.argument.flags                                    =   [-v,-c,-t,"amplitudeSmooth000;phaseOrig000",h5parm2.output.mapfile,globaldb2.output.mapfile]
 
 ### Step: 17e
 ### --- Rename new solution tables (3)
@@ -701,7 +702,7 @@ renamesol3.control.type                                      =   executable_args
 renamesol3.control.mapfile_in                                =   h5parmexp2.output.mapfile
 renamesol3.control.executable                                =   /bin/bash
 renamesol3.control.skip_infile                               =   True
-renamesol3.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldbclock/sol000_instrument-?]
+renamesol3.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-?]
 
 ### Step: 17f
 ### --- Rename new solution tables (4)
@@ -709,14 +710,14 @@ renamesol4.control.type                                      =   executable_args
 renamesol4.control.mapfile_in                                =   h5parmexp2.output.mapfile
 renamesol4.control.executable                                =   /bin/bash
 renamesol4.control.skip_infile                               =   True
-renamesol4.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldbclock/sol000_instrument-??]
+renamesol4.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-??]
 
 ### Step: 17g
 ### --- List new solution tables (in preparation for the target field)
 listsol2.control.kind                                        =   plugin                                     # plugin -> short, non-parallel step
 listsol2.control.type                                        =   createMapfile                              # generate a new mapfile
 listsol2.control.method                                      =   mapfile_from_folder                        # look for all files in a given directory
-listsol2.control.folder                                      =   {{ job_directory }}/pipeline.globaldbclock # directory in which to look for the data
+listsol2.control.folder                                      =   {{ job_directory }}/pipeline.globaldb2     # directory in which to look for the data
 listsol2.control.mapfile_dir                                 =   input.output.mapfile_dir                   # put the mapfile into the runtime directory
 listsol2.control.filename                                    =   listsol2.mapfile                           # name of the generated mapfile
 listsol2.control.pattern                                     =   sol000_instrument*
