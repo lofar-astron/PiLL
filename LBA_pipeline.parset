@@ -389,7 +389,7 @@ renamesol.control.type                                       =   executable_args
 renamesol.control.mapfile_in                                 =   h5parmexp.output.mapfile
 renamesol.control.executable                                 =   /bin/bash
 renamesol.control.skip_infile                                =   True
-renamesol.control.arguments                                  =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldbFR/sol000_instrument-?]
+renamesol.control.arguments                                  =   [-c,rename -v 's/sol000_instrument-/sol000_instrument-0/g' {{ job_directory }}/pipeline.globaldbFR/sol000_instrument-?]
 
 ### Step: 14e
 ### --- Rename new solution tables (2)
@@ -397,7 +397,7 @@ renamesol2.control.type                                      =   executable_args
 renamesol2.control.mapfile_in                                =   h5parmexp.output.mapfile
 renamesol2.control.executable                                =   /bin/bash
 renamesol2.control.skip_infile                               =   True
-renamesol2.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldbFR/sol000_instrument-??]
+renamesol2.control.arguments                                 =   [-c,rename -v 's/sol000_instrument-/sol000_instrument-0/g' {{ job_directory }}/pipeline.globaldbFR/sol000_instrument-??]
 
 ### Step: 14f
 ### --- List new solution tables
@@ -702,7 +702,7 @@ renamesol3.control.type                                      =   executable_args
 renamesol3.control.mapfile_in                                =   h5parmexp2.output.mapfile
 renamesol3.control.executable                                =   /bin/bash
 renamesol3.control.skip_infile                               =   True
-renamesol3.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-?]
+renamesol3.control.arguments                                 =   [-c,rename -v 's/sol000_instrument-/sol000_instrument-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-?]
 
 ### Step: 17f
 ### --- Rename new solution tables (4)
@@ -710,7 +710,7 @@ renamesol4.control.type                                      =   executable_args
 renamesol4.control.mapfile_in                                =   h5parmexp2.output.mapfile
 renamesol4.control.executable                                =   /bin/bash
 renamesol4.control.skip_infile                               =   True
-renamesol4.control.arguments                                 =   [-c,rename -v 's/-/-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-??]
+renamesol4.control.arguments                                 =   [-c,rename -v 's/sol000_instrument-/sol000_instrument-0/g' {{ job_directory }}/pipeline.globaldb2/sol000_instrument-??]
 
 ### Step: 17g
 ### --- List new solution tables (in preparation for the target field)
