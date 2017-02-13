@@ -208,7 +208,6 @@ smooth.argument.flags                                        =   [-r,-w,-i,CORRE
 ### Step: 09a
 ### --- Create skymodel for calibrator
 sourcedb.control.type                                        =   setupsourcedb
-sourcedb.control.error_tolerance                             =   {{ error_tolerance }}
 sourcedb.control.cmdline.mapfile                             =   listtemp.output.mapfile
 sourcedb.control.skymodel                                    =   {{ skymodels }}/{{ calibrator }}.skymodel
 
