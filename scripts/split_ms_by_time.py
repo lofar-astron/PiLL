@@ -21,8 +21,7 @@ outputname = sys.argv[2] # define output MS-file
 # end = 3.0 will mean that output MS will stop 3 hours from the start of 
 #    INPUT MS
 # So output MS will have 2 hours of data in such a case
-start_out = int(sys.argv[3]) # hour to start
-end_out   = int(sys.argv[4]) # hour to end
+
 ####### END USER ENTRY #########
 
 print '###############################################'
@@ -31,6 +30,7 @@ t = pt.table(tablename)
 
 starttime = t[0]['TIME']
 endtime   = t[t.nrows()-1]['TIME']
+hours     = int((endtime-starttime)/3600.)
 
 
 print '====================='
@@ -40,27 +40,36 @@ print 'Start time (sec) = '+str(starttime)
 print 'End time   (sec) = '+str(endtime)
 print 'Total time duration (hrs)  = '+str((endtime-starttime)/3600)
 
-print '====================='
+for hour in range(hours):
 
-print 'Output Measurement Set is '+outputname
-print 'Start time (relative to input ms start) = '+str(start_out)
-print 'End time   (relative to input ms start) = '+str(end_out)
-print 'Total time duration (hrs)  = '+str(end_out-start_out)
+	directory  = '/'.join(outputname.split('/')[:-1]) + '/'
+	filename   = outputname.split('/')[-1]
+	outputfile = directory + '.'.join(filename.split('.')[:-1]) + '_TC' + str(hour) + '.' + filename.split('.')[-1]
+	
+	start_out = hour # hour to start
+	end_out   = hour + 1 # hour to end
+	
+	print '====================='
+	print 'Output Measurement Set is '+outputfile
+	print 'Start time (relative to input ms start) = '+str(start_out)
+	print 'End time   (relative to input ms start) = '+str(end_out)
+	print 'Total time duration (hrs)  = '+str(end_out - start_out)
 
-print '====================='
+	print '====================='
 
-print 'Now going to do the Querry to select the required time range'
+	print 'Now going to do the Querry to select the required time range'
 
-t1 = t.query('TIME > ' + str(starttime+start_out*3600) + ' && \
-  TIME < ' + str(starttime+end_out*3600), sortlist='TIME,ANTENNA1,ANTENNA2') 
+	t1 = t.query('TIME > ' + str(starttime+start_out*3600) + ' && TIME < ' + str(starttime+end_out*3600), sortlist='TIME,ANTENNA1,ANTENNA2')
 
+	print 'Total rows in Input MS  = '+str(t.nrows())
+	print 'Total rows in Output MS = '+str(t1.nrows())
 
-print 'Total rows in Input MS  = '+str(t.nrows())
-print 'Total rows in Output MS = '+str(t1.nrows())
+	print 'Now Writing the output MS'
+	t1.copy(outputfile, True)
+	t1.close()
+	
+	pass
 
-print 'Now Writing the output MS'
-t1.copy(outputname, True)
-t1.close()
 t.close()
 print 'Copying Completed... Thanks for using the script '
 print '###############################################'
