@@ -1,6 +1,6 @@
 # PiLL #
 ## Pipeline for LOFAR LBA ##
-============================
+
 `PiLL` is a pipeline to automatically reduce and calibrate LOFAR LBA data which have been observed in dual beam mode.
 The parset provided here is used as an input for the genericpipeline.
 
