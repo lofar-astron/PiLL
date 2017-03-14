@@ -33,6 +33,7 @@ pipeline.pluginpath   = {{ local_directory }}/plugins                     ## spe
 !bad_stations         = ;!CS031LBA*&&*;!RS409LBA*&&*                      ## filter list of bad stations (beginn with ;! and add ;! for every other station)
 !max_per_node         = input.output.max_per_node                         ## this is defined in the pipeline.cfg
 !chunks               = 10                                                ## number of I/O intense steps
+!timechunk            = 1                                                 ## length of a time chunk for the target field in hours
 !antennae             = HBA                                               ## we have LBA, see http://www.astron.nl/radio-observatory/observing-capabilities/depth-technical-information/system-notes/inaccurate-flaggin
 !average_timestep     = 2                                                 ## average down to 4sec
 !average_freqstep     = 4                                                 ## average down to 4ch/SB
@@ -941,7 +942,7 @@ concat.argument.flag.strategy                                =   {{ lofar_direct
 ### --- Split MS by time
 split.control.type                                           =   executable_args
 split.control.executable                                     =   {{ scripts }}/split_ms_by_time.py
-split.argument.flags                                         =   [concat.output.mapfile,outputkey]
+split.argument.flags                                         =   [concat.output.mapfile,outputkey,{{ timechunk }}]
 
 ### Step: 07b
 ### --- Map splitted files

@@ -13,6 +13,7 @@ import sys
 # Enter the correct input and output table names below
 tablename = sys.argv[1]  # define input MS-file
 outputname = sys.argv[2] # define output MS-file
+chunksize  = float(sys.argv[3])
 
 # Please Enter the start and end times in hours for the output measrement set 
 #     relative to the start of input measurement set
@@ -30,7 +31,7 @@ t = pt.table(tablename)
 
 starttime = t[0]['TIME']
 endtime   = t[t.nrows()-1]['TIME']
-hours     = int((endtime-starttime)/3600.)
+chunks    = int((endtime-starttime)/(3600. * chunksize))
 
 
 print '====================='
@@ -40,36 +41,36 @@ print 'Start time (sec) = '+str(starttime)
 print 'End time   (sec) = '+str(endtime)
 print 'Total time duration (hrs)  = '+str((endtime-starttime)/3600)
 
-for hour in range(hours):
+for chunk in range(chunks + 1):
 
 	directory  = '/'.join(outputname.split('/')[:-1]) + '/'
 	filename   = outputname.split('/')[-1]
-	outputfile = directory + '.'.join(filename.split('.')[:-1]) + '_TC' + str(hour) + '.' + filename.split('.')[-1]
+	outputfile = directory + '.'.join(filename.split('.')[:-1]) + '_TC' + str(chunk) + '.' + filename.split('.')[-1]
 	
-	start_out = hour # hour to start
-	end_out   = hour + 1 # hour to end
+	start_out = chunk * chunksize  # hour to start
+	end_out   = chunk * chunksize + chunksize # hour to end
 	
 	print '====================='
 	print 'Output Measurement Set is '+outputfile
-	print 'Start time (relative to input ms start) = '+str(start_out)
-	print 'End time   (relative to input ms start) = '+str(end_out)
+	print 'Start time = '+str(start_out)
+	print 'End time   = '+str(end_out)
 	print 'Total time duration (hrs)  = '+str(end_out - start_out)
 
 	print '====================='
 
-	print 'Now going to do the Querry to select the required time range'
+	print 'Now going to do the query to select the required time range'
 
 	t1 = t.query('TIME > ' + str(starttime+start_out*3600) + ' && TIME < ' + str(starttime+end_out*3600), sortlist='TIME,ANTENNA1,ANTENNA2')
 
-	print 'Total rows in Input MS  = '+str(t.nrows())
-	print 'Total rows in Output MS = '+str(t1.nrows())
+	print 'Total rows in input MS  = '+str(t.nrows())
+	print 'Total rows in output MS = '+str(t1.nrows())
 
-	print 'Now Writing the output MS'
+	print 'Now writing the output MS'
 	t1.copy(outputfile, True)
 	t1.close()
 	
 	pass
 
 t.close()
-print 'Copying Completed... Thanks for using the script '
+print 'Copying completed... Thanks for using the script! '
 print '###############################################'
