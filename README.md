@@ -26,4 +26,4 @@ The script `H5parm_exporter.py` has been altered in order to accept ; as separat
 ### Dependencies
 
 * LOFAR Software (version >= 2.19_0)
-* [LoSoTo] (https://github.com/revoltek/losoto) (version 0.5)
+* [LoSoTo](https://github.com/revoltek/losoto) (version 0.5)
