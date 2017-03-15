@@ -8,6 +8,7 @@ import sys
 # Run this program as python split_ms_by_time.py
 # or Run it as ./split_ms_by_time.py if the script is executable
 # Pandey:v0.0:May2010 contact: pandey@astro.rug.nl
+# edited for PiLL by A. Drabent alex@tls-tautenburg.de
 
 ####### START USER ENTRY #########
 # Enter the correct input and output table names below
