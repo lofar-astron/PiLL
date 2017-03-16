@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps (first line if you have to "fix" something)
-pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock,listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,lintocirctar,applysol,flagweight,concat,split,listsplit]
+pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedb,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock,listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,lintocirctar,applysol,concat,split,listsplit]
 
 ### Parameter setup -- observational details
 !calibrator           = 3C295
@@ -739,10 +739,10 @@ losotoampclock.argument.LoSoTo.Steps.plotPr3.Reference       =   'CS001LBA'
 losotoampclock.argument.LoSoTo.Steps.plotPr3.MinMax          =   [-3.14,3.14]
 losotoampclock.argument.LoSoTo.Steps.flag.Operation          =   FLAG
 losotoampclock.argument.LoSoTo.Steps.flag.Soltab             =   [sol000/phase000]
-losotoampclock.argument.LoSoTo.Steps.flag.Axes               =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.flag.Axes               =   [time]
 losotoampclock.argument.LoSoTo.Steps.flag.MaxCycles          =   1
 losotoampclock.argument.LoSoTo.Steps.flag.MaxRms             =   5
-losotoampclock.argument.LoSoTo.Steps.flag.Order              =   [300,100]
+losotoampclock.argument.LoSoTo.Steps.flag.Order              =   [100]
 losotoampclock.argument.LoSoTo.Steps.flag.Replce             =   False
 losotoampclock.argument.LoSoTo.Steps.flag.PreFlagZeros       =   False
 losotoampclock.argument.LoSoTo.Steps.flag.Mode               =   smooth
@@ -991,10 +991,10 @@ applysol.argument.correctclock.parmdb                        =   parmdbs
 applysol.argument.correctclock.correction                    =   clock
 
 ### Step: 06
-### --- Re-set weights of flagged data to 0
-flagweight.control.type                                      =   executable_args
-flagweight.control.executable                                =   {{ scripts }}/flag_weight_to_zero.py
-flagweight.argument.flags                                    =   [flagtar.output.mapfile]
+### --- Re-set weights of flagged data to 0 -- only needed if Dysco is used
+# flagweight.control.type                                      =   executable_args
+# flagweight.control.executable                                =   {{ scripts }}/flag_weight_to_zero.py
+# flagweight.argument.flags                                    =   [flagtar.output.mapfile]
 
 ### Step: 07
 ### --- Concatenate target observation
