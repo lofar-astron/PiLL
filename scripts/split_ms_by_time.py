@@ -1,6 +1,7 @@
 #!/usr/bin/python 
 import pyrap.tables as pt 
 import sys
+import math
 
 # on the offline cluster if you are in c ot tcsh type: 
 # use Casa; use Pythonlibs; use LofIm; use Casacore
@@ -33,6 +34,7 @@ t = pt.table(tablename)
 starttime = t[0]['TIME']
 endtime   = t[t.nrows()-1]['TIME']
 chunks    = int((endtime-starttime)/(3600. * chunksize))
+zeros     = int(math.log10(chunks))
 
 
 print '====================='
@@ -46,7 +48,7 @@ for chunk in range(chunks + 1):
 
 	directory  = '/'.join(outputname.split('/')[:-1]) + '/'
 	filename   = outputname.split('/')[-1]
-	outputfile = directory + '.'.join(filename.split('.')[:-1]) + '_TC' + str(chunk) + '.' + filename.split('.')[-1]
+	outputfile = directory + '.'.join(filename.split('.')[:-1]) + '_TC' + str(chunk).zfill(zeros) + '.' + filename.split('.')[-1]
 	
 	start_out = chunk * chunksize  # hour to start
 	end_out   = chunk * chunksize + chunksize # hour to end
