@@ -1,0 +1,825 @@
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    Beginning of calibrator pipeline                                                                                                                        ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
+
+### Steps to run
+# pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedbcal,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock]
+pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedbcal,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock]
+
+################################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################################
+
+### Step: 01
+### --- List of calibrator files that will be processed in later steps
+listcal.control.kind                                         =   plugin                     # plugin -> short, non-parallel step
+listcal.control.type                                         =   createMapfile              # generate a new mapfile
+listcal.control.method                                       =   mapfile_from_folder        # look for all files in a given directory
+listcal.control.folder                                       =   {{ calibrator_directory }} # directory in which to look for the data
+listcal.control.mapfile_dir                                  =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listcal.control.filename                                     =   listcal.mapfile            # name of the generated mapfile
+listcal.control.pattern                                      =   {{ calibrator_pattern }}   # use only files that match this pattern
+
+### Step: 02
+### --- List of the single calibrator MS which is used as a template for making a skymodel
+listtemp.control.kind                                        =   plugin                     # plugin -> short, non-parallel step
+listtemp.control.type                                        =   createMapfile              # generate a new mapfile
+listtemp.control.method                                      =   mapfile_from_folder        # look for all files in a given directory
+listtemp.control.folder                                      =   {{ calibrator_directory }} # directory in which to look for the data
+listtemp.control.mapfile_dir                                 =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listtemp.control.filename                                    =   listtemp.mapfile           # name of the generated mapfile
+listtemp.control.pattern                                     =   {{ calibrator_template }}  # use only files that match this pattern
+
+### Step: 03a
+### --- Data preparation for the calibrator
+flagcal.control.type                                         =   dppp
+flagcal.control.max_per_node                                 =   {{ max_per_node_limit }}
+flagcal.control.error_tolerance                              =   {{ error_tolerance }}
+flagcal.argument.numthreads                                  =   {{ max_dppp_threads }}
+flagcal.argument.msin                                        =   listcal.output.mapfile
+flagcal.argument.msin.baseline                               =   [CR]S*&
+flagcal.argument.msin.datacolumn                             =   DATA
+flagcal.argument.msout.datacolumn                            =   DATA
+flagcal.argument.msout.writefullresflag                      =   False
+flagcal.argument.steps                                       =   [filter,flagelevation,flag,avg,count]
+flagcal.argument.filter.type                                 =   filter
+flagcal.argument.filter.baseline                             =   CS*&;CS*&RS*;RS*&{{ bad_stations }}
+flagcal.argument.filter.remove                               =   True
+flagcal.argument.flagelevation.type                          =   preflagger
+flagcal.argument.flagelevation.elevation                     =   0deg..20deg
+flagcal.argument.flag.type                                   =   aoflagger
+flagcal.argument.flag.keepstatistics                         =   True
+flagcal.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
+flagcal.argument.avg.type                                    =   averager
+flagcal.argument.avg.freqstep                                =   {{ average_freqstep }}
+flagcal.argument.avg.timestep                                =   {{ average_timestep }}
+
+## Step: 03b
+## --- Update mapfile for calibrator clock tables
+listclock.control.kind                                       =   plugin
+listclock.control.type                                       =   changeMapfile
+listclock.control.mapfile_in                                 =   flagcal.output.mapfile
+listclock.control.join_files                                 =   instrument-clock
+listclock.control.newname                                    =   listclock.mapfile
+
+### Step: 03c
+### --- Update mapfile for calibrator FR tables
+listFR.control.kind                                          =   plugin
+listFR.control.type                                          =   changeMapfile
+listFR.control.mapfile_in                                    =   flagcal.output.mapfile
+listFR.control.join_files                                    =   instrument-fr
+listFR.control.newname                                       =   listFR.mapfile
+
+### Step: 03d
+### --- Update mapfile for conversion to circular
+listcolumn.control.kind                                      =   plugin
+listcolumn.control.type                                      =   changeMapfile
+listcolumn.control.mapfile_in                                =   flagcal.output.mapfile
+listcolumn.control.join_files                                =   :CORRECTED_DATA
+listcolumn.control.newname                                   =   listcolumn.mapfile
+
+### Step: 03e
+### --- List instrument table for calibrator field
+listinst.control.kind                                        =   plugin
+listinst.control.type                                        =   changeMapfile
+listinst.control.mapfile_in                                  =   flagcal.output.mapfile
+listinst.control.join_files                                  =   instrument
+listinst.control.newname                                     =   listinst.mapfile
+
+## Step: 04a
+## --- Creation of fake-parmdbs (clock)
+parmdbclock.control.type                                     =   python-calibrate-stand-alone
+parmdbclock.control.error_tolerance                          =   {{ error_tolerance }}
+parmdbclock.argument.force                                   =   True                                       # force replaceing of parmDB and skyDB
+parmdbclock.argument.observation                             =   flagcal.output.mapfile                     # run on files generated by flag_compress step
+parmdbclock.argument.parmdb-name                             =   instrument-clock
+parmdbclock.argument.catalog                                 =   {{ skymodels }}/{{ calibrator }}.skymodel  # which skymodel to use
+parmdbclock.argument.numthreads                              =   {{ max_per_node }}
+parmdbclock.argument.Strategy.ChunkSize                      =   500
+parmdbclock.argument.Strategy.Steps                          =   [solve]
+parmdbclock.argument.Step.solve.Operation                    =   SOLVE
+parmdbclock.argument.Step.solve.Model.Sources                =   [@MODEL_DATA]
+parmdbclock.argument.Step.solve.Model.Cache.Enable           =   T
+parmdbclock.argument.Step.solve.Model.Gain.Enable            =   T
+parmdbclock.argument.Step.solve.Model.Clock.Enable           =   T
+parmdbclock.argument.Step.solve.Solve.Parms                  =   ["Gain:0:0:*", "Gain:1:1:*", "Clock:*"]
+parmdbclock.argument.Step.solve.Solve.CellChunkSize          =   500
+parmdbclock.argument.Step.solve.Solve.PropagateSolutions     =   F
+parmdbclock.argument.Step.solve.Solve.CellSize.Freq          =   1
+parmdbclock.argument.Step.solve.Solve.CellSize.Time          =   1
+parmdbclock.argument.Step.solve.Solve.Options.MaxIter        =   1
+
+### Step: 04b
+### --- Creation of fake-parmdbs (Faraday Rotation)
+parmdbFR.control.type                                        =   python-calibrate-stand-alone
+parmdbFR.control.error_tolerance                             =   {{ error_tolerance }}
+parmdbFR.argument.force                                      =   True                                       # force replaceing of parmDB and skyDB
+parmdbFR.argument.observation                                =   flagcal.output.mapfile                     # run on files generated by flag_compress step
+parmdbFR.argument.parmdb-name                                =   instrument-fr
+parmdbFR.argument.catalog                                    =   {{ skymodels }}/{{ calibrator }}.skymodel  # which skymodel to use
+parmdbFR.argument.numthreads                                 =   {{ max_per_node }}
+parmdbFR.argument.Strategy.ChunkSize                         =   500
+parmdbFR.argument.Strategy.Steps                             =   [solve]
+parmdbFR.argument.Step.solve.Operation                       =   SOLVE
+parmdbFR.argument.Step.solve.Model.Sources                   =   [@MODEL_DATA]
+parmdbFR.argument.Step.solve.Model.Cache.Enable              =   T
+parmdbFR.argument.Step.solve.Model.FaradayRotation.Enable    =   T
+parmdbFR.argument.Step.solve.Solve.Parms                     =   ["RotationMeasure:*"]
+parmdbFR.argument.Step.solve.Solve.CellChunkSize             =   500
+parmdbFR.argument.Step.solve.Solve.PropagateSolutions        =   F
+parmdbFR.argument.Step.solve.Solve.CellSize.Freq             =   0
+parmdbFR.argument.Step.solve.Solve.CellSize.Time             =   1
+parmdbFR.argument.Step.solve.Solve.Options.MaxIter           =   1
+
+### Step: 04c
+### --- Fix entries in the NAMES subtable
+fixFR.control.type                                           =   executable_args
+fixFR.control.executable                                     =   {{ scripts }}/fixFR.bash
+fixFR.control.error_tolerance                                =   {{ error_tolerance }}
+fixFR.argument.flags                                         =   [listFR.output.mapfile]
+
+### Step: 05
+### --- Beam correction
+beamcal.control.type                                         =   dppp
+beamcal.control.inplace                                      =   True
+beamcal.control.max_per_node                                 =   {{ max_per_node_limit }}
+beamcal.control.error_tolerance                              =   {{ error_tolerance }}
+beamcal.argument.numthreads                                  =   {{ max_dppp_threads }}
+beamcal.argument.msin                                        =   flagcal.output.mapfile
+beamcal.argument.msin.datacolumn                             =   DATA
+beamcal.argument.msout.datacolumn                            =   CORRECTED_DATA
+beamcal.argument.steps                                       =   [applybeam]
+beamcal.argument.applybeam.type                              =   applybeam
+beamcal.argument.applybeam.invert                            =   True
+beamcal.argument.applybeam.usechannelfreq                    =   False
+
+### Step: 06
+### --- Convert to circular
+lintocirc.control.type                                       =   executable_args
+lintocirc.control.max_per_node                               =   {{ max_per_node_limit }}
+lintocirc.control.error_tolerance                            =   {{ error_tolerance }}
+lintocirc.control.executable                                 =   {{ scripts }}/mslin2circ.py
+lintocirc.argument.flags                                     =   [-w,-i,listcolumn.output.mapfile,-o,listcolumn.output.mapfile]
+
+### Step: 07
+### --- Smooth the data (baseline-based)
+smooth.control.type                                          =   executable_args
+smooth.control.error_tolerance                               =   {{ error_tolerance }}
+smooth.control.executable                                    =   {{ scripts }}/BLsmooth.py
+smooth.argument.flags                                        =   [-r,-i,CORRECTED_DATA,-o,SMOOTHED_DATA,flagcal.output.mapfile]
+
+### Step: 08a
+### --- Create skymodel for calibrator
+sourcedb.control.type                                        =   setupsourcedb
+sourcedb.control.cmdline.mapfile                             =   listtemp.output.mapfile
+sourcedb.control.skymodel                                    =   {{ skymodels }}/{{ calibrator }}.skymodel
+
+### Step: 08b
+### --- Expand skymodel mapfile to the amount of calibrator files
+listsourcedbcal.control.kind                                 =   plugin
+listsourcedbcal.control.type                                 =   expandMapfile
+listsourcedbcal.control.mapfile_in                           =   sourcedb.output.mapfile
+listsourcedbcal.control.mapfile_ref                          =   flagcal.output.mapfile
+listsourcedbcal.control.mapfile_dir                          =   input.output.mapfile_dir
+listsourcedbcal.control.filename                             =   listsourcedbcal.mapfile
+
+### Step: 09
+### --- Calibrate smoothed data
+smoothcal.control.type                                       =   dppp
+smoothcal.control.inplace                                    =   True
+smoothcal.control.error_tolerance                            =   {{ error_tolerance }}
+smoothcal.control.mapfiles_in                                =   [flagcal.output.mapfile,listinst.output.mapfile,listsourcedbcal.output.mapfile]
+smoothcal.control.inputkeys                                  =   [infiles,parmdbs,sourcedb]
+smoothcal.argument.numthreads                                =   {{ max_dppp_threads }}
+smoothcal.argument.msin                                      =   infiles
+smoothcal.argument.msin.datacolumn                           =   SMOOTHED_DATA
+smoothcal.argument.msin.baseline                             =   [CR]S*&
+smoothcal.argument.msout.datacolumn                          =   CORRECTED_DATA
+smoothcal.argument.steps                                     =   [filter,gaincal]
+smoothcal.argument.filter.blrange                            =   [3000,1e30]
+smoothcal.argument.gaincal.type                              =   gaincal
+smoothcal.argument.gaincal.parmdb                            =   parmdbs
+smoothcal.argument.gaincal.caltype                           =   diagonal
+smoothcal.argument.gaincal.maxiter                           =   500
+smoothcal.argument.gaincal.sourcedb                          =   sourcedb
+smoothcal.argument.gaincal.sources                           =   []
+smoothcal.argument.gaincal.usebeammodel                      =   True
+smoothcal.argument.gaincal.usechannelfreq                    =   False
+smoothcal.argument.gaincal.beammode                          =   array_factor
+smoothcal.argument.gaincal.nchan                             =   1
+smoothcal.argument.gaincal.solint                            =   1
+smoothcal.argument.gaincal.propagatesolutions                =   False
+
+### Step: 10
+### --- Creating VDS files
+makevds.control.type                                         =   vdsmaker
+makevds.control.cmdline.inmap                                =   flagcal.output.mapfile
+makevds.control.unlink                                       =   True
+
+### Step: 11
+### --- Creating mapfile for the VDS files
+findvds.control.kind                                         =   plugin
+findvds.control.type                                         =   createMapfile
+findvds.control.method                                       =   mapfile_from_folder
+findvds.control.folder                                       =   {{ job_directory }}/vds
+findvds.control.mapfile_dir                                  =   input.output.mapfile_dir
+findvds.control.filename                                     =   findvds.mapfile
+
+### Step: 12a
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldb.control.type                                        =   executable_args
+globaldb.control.executable                                  =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldb.argument.flags                                      =   [-v,-d,findvds.output.mapfile,-g,outputkey]
+
+### Step: 12b
+### --- Create globaldb out of the VDS files for the instrument-fr tables
+globaldbFR.control.type                                      =   executable_args
+globaldbFR.control.executable                                =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbFR.argument.flags                                    =   [-v,-d,findvds.output.mapfile,-p,instrument-fr,-g,outputkey]
+
+### Step: 13c
+### --- Create globaldb out of the VDS files for the instrument-clock tables
+globaldbampclock.control.type                                =   executable_args
+globaldbampclock.control.executable                          =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbampclock.argument.flags                              =   [-v,-d,findvds.output.mapfile,-p,instrument-clock,-g,outputkey]
+
+### Step: 13a
+### --- Import globaldb to h5parm
+h5parmFR.control.type                                        =   executable_args
+h5parmFR.control.executable                                  =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmFR.argument.flags                                      =   [-v,outputkey,globaldb.output.mapfile]
+
+### Step: 13b
+### --- Running losoto to plot, flag and do the Farady Rotation extraction
+losotoFR.control.type                                        =   executable_args
+losotoFR.control.executable                                  =   {{ losoto_directory }}/bin/losoto
+losotoFR.control.parsetasfile                                =   True
+losotoFR.control.args_format                                 =   losoto
+losotoFR.argument.flags                                      =   [-v,h5parmFR.output.mapfile]
+losotoFR.argument.LoSoTo.Steps                               =   [plotA1, flag, flagextend, plotA2, merge, duplicateBkp, plotPi, faraday, plotFR, residuals, plotPr]
+losotoFR.argument.LoSoTo.Solset                              =   [sol000]
+losotoFR.argument.LoSoTo.Soltab                              =   []
+losotoFR.argument.LoSoTo.SolType                             =   []
+losotoFR.argument.LoSoTo.ant                                 =   []
+losotoFR.argument.LoSoTo.pol                                 =   [XX, YY]
+losotoFR.argument.LoSoTo.dir                                 =   []
+losotoFR.argument.LoSoTo.Ncpu                                =   {{ max_per_node }}
+losotoFR.argument.LoSoTo.Steps.plotA1.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotA1.Soltab                 =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.plotA1.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotA1.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotA1.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotA1.Prefix                 =   plots-fr/ampPF_
+losotoFR.argument.LoSoTo.Steps.flag.Operation                =   FLAG
+losotoFR.argument.LoSoTo.Steps.flag.Soltab                   =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.flag.Axes                     =   [time]
+losotoFR.argument.LoSoTo.Steps.flag.MaxCycles                =   1
+losotoFR.argument.LoSoTo.Steps.flag.MaxRms                   =   5
+losotoFR.argument.LoSoTo.Steps.flag.Order                    =   [100] 
+losotoFR.argument.LoSoTo.Steps.flag.Replce                   =   False
+losotoFR.argument.LoSoTo.Steps.flag.PreFlagZeros             =   False
+losotoFR.argument.LoSoTo.Steps.flag.Mode                     =   smooth
+losotoFR.argument.LoSoTo.Steps.flagextend.Operation          =   FLAGEXTEND
+losotoFR.argument.LoSoTo.Steps.flagextend.Soltab             =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.flagextend.Axes               =   [freq,time]
+losotoFR.argument.LoSoTo.Steps.flagextend.Percent            =   50
+losotoFR.argument.LoSoTo.Steps.flagextend.Size               =   [50,100]
+losotoFR.argument.LoSoTo.Steps.flagextend.Cycles             =   3
+losotoFR.argument.LoSoTo.Steps.plotA2.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotA2.Soltab                 =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.plotA2.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotA2.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotA2.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotA2.Prefix                 =   plots-fr/ampAF_
+losotoFR.argument.LoSoTo.Steps.merge.Operation               =   REWEIGHT
+losotoFR.argument.LoSoTo.Steps.merge.Soltab                  =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.merge.MergeFromSoltab         =   sol000/amplitude000
+losotoFR.argument.LoSoTo.Steps.duplicateBkp.Operation        =   DUPLICATE
+losotoFR.argument.LoSoTo.Steps.duplicateBkp.InTable          =   sol000/phase000
+losotoFR.argument.LoSoTo.Steps.duplicateBkp.OutTable         =   sol000/phaseOrig000
+losotoFR.argument.LoSoTo.Steps.plotPi.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotPi.Soltab                 =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.plotPi.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotPi.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotPi.DiffAxis               =   pol
+losotoFR.argument.LoSoTo.Steps.plotPi.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotPi.Prefix                 =   plots-fr/ph-rot_
+losotoFR.argument.LoSoTo.Steps.plotPi.Reference              =   'CS001LBA'
+losotoFR.argument.LoSoTo.Steps.plotPi.MinMax                 =   [-3.14,3.14]
+losotoFR.argument.LoSoTo.Steps.faraday.Operation             =   FARADAY
+losotoFR.argument.LoSoTo.Steps.faraday.Soltab                =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.plotFR.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotFR.Soltab                 =   [sol000/rotationmeasure000]
+losotoFR.argument.LoSoTo.Steps.plotFR.Axes                   =   [time]
+losotoFR.argument.LoSoTo.Steps.plotFR.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotFR.Prefix                 =   plots-fr/fr
+losotoFR.argument.LoSoTo.Steps.residuals.Operation           =   RESIDUALS
+losotoFR.argument.LoSoTo.Steps.residuals.Soltab              =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.residuals.Sub                 =   [sol000/rotationmeasure000]
+losotoFR.argument.LoSoTo.Steps.plotPr.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotPr.Soltab                 =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.plotPr.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotPr.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotPr.DiffAxis               =   pol
+losotoFR.argument.LoSoTo.Steps.plotPr.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotPr.Prefix                 =   plots-fr/phRes-rot_
+losotoFR.argument.LoSoTo.Steps.plotPr.Reference              =   'CS001LBA'
+losotoFR.argument.LoSoTo.Steps.plotPr.MinMax                 =   [-3.14,3.14]
+
+### Step: 13c
+### --- Export rotationmeasure from h5parm to globaldb-fr
+h5parmexpFR.control.type                                     =   executable_args
+h5parmexpFR.control.executable                               =   {{ scripts }}/H5parm_exporter.py
+h5parmexpFR.argument.flags                                   =   [-v,-c,-t,rotationmeasure000,h5parmFR.output.mapfile,globaldbFR.output.mapfile]
+
+### Step: 13d
+### --- List new solution tables
+listsolFR.control.kind                                       =   plugin                                    # plugin -> short, non-parallel step
+listsolFR.control.type                                       =   createMapfile                             # generate a new mapfile
+listsolFR.control.method                                     =   mapfile_from_folder                       # look for all files in a given directory
+listsolFR.control.folder                                     =   {{ job_directory }}/{{ job_name }}.calibrator-globaldbFR
+listsolFR.control.mapfile_dir                                =   input.output.mapfile_dir                  # put the mapfile into the runtime directory
+listsolFR.control.filename                                   =   listsolFR.mapfile                         # name of the generated mapfile
+listsolFR.control.pattern                                    =   sol000_instrument*   
+
+### Step: 13e
+# Find appropriate MSs to match with phase solutions (which are probably from a group)
+# This is a custom plugin. It is matching the frequency information of the parmdbs with the corresponding measurement sets
+match_files_calFR.control.kind                               =   plugin
+match_files_calFR.control.type                               =   FindCorrespondingMSX
+match_files_calFR.control.mapfile_dir                        =   input.output.mapfile_dir
+match_files_calFR.control.filename                           =   match_files_calFR.mapfile
+match_files_calFR.control.mapfile_grpd                       =   listsolFR.output.mapfile
+match_files_calFR.control.mapfile_ms                         =   flagcal.output.mapfile
+
+### Step: 14
+### --- Apply FaradyRotation correction
+applyFR.control.type                                         =   dppp
+applyFR.control.inplace                                      =   True
+applyFR.control.error_tolerance                              =   {{ error_tolerance }}
+applyFR.control.max_per_node                                 =   {{ max_per_node_limit }}
+applyFR.control.mapfiles_in                                  =   [match_files_calFR.output.mapfile,match_files_calFR.output.parmdbs]
+applyFR.control.inputkeys                                    =   [infiles,parmdbs]
+applyFR.argument.numthreads                                  =   {{ max_dppp_threads }}
+applyFR.argument.msin                                        =   infiles
+applyFR.argument.msin.datacolumn                             =   CORRECTED_DATA
+applyFR.argument.msout.datacolumn                            =   CORRECTED_DATA
+applyFR.argument.steps                                       =   [correct]
+applyFR.argument.correct.type                                =   correct
+applyFR.argument.correct.parmdb                              =   parmdbs
+applyFR.argument.correct.correction                          =   RotationMeasure
+
+### Step: 15
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbCD.control.type                                      =   executable_args
+globaldbCD.control.executable                                =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbCD.argument.flags                                    =   [-v,-d,findvds.output.mapfile,-g,outputkey]
+
+### Step: 16a
+### --- Import globaldb to h5parm
+h5parmCD.control.type                                        =   executable_args
+h5parmCD.control.executable                                  =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmCD.argument.flags                                      =   [-v,outputkey,globaldbCD.output.mapfile]
+
+### Step: 16b
+### --- Running losoto for plotting, flagging and deriving the cross delays
+losotoCD.control.type                                        =   executable_args
+losotoCD.control.executable                                  =   {{ losoto_directory }}/bin/losoto
+losotoCD.control.parsetasfile                                =   True
+losotoCD.control.args_format                                 =   losoto
+losotoCD.argument.flags                                      =   [-v,h5parmCD.output.mapfile]
+losotoCD.argument.LoSoTo.Steps                               =   [plotA1, flag, flagextend, plotA2, merge, duplicateBkp, plotPi, plotPi2, crossdelay, plotCD, plotCD2, residuals, plotPr, plotPr2, reset]
+losotoCD.argument.LoSoTo.Solset                              =   [sol000]
+losotoCD.argument.LoSoTo.Soltab                              =   []
+losotoCD.argument.LoSoTo.SolType                             =   []
+losotoCD.argument.LoSoTo.ant                                 =   []
+losotoCD.argument.LoSoTo.pol                                 =   [XX, YY]
+losotoCD.argument.LoSoTo.dir                                 =   []
+losotoCD.argument.LoSoTo.Ncpu                                =   {{ max_per_node }}
+losotoCD.argument.LoSoTo.Steps.plotA1.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotA1.Soltab                 =   [sol000/amplitude000]
+losotoCD.argument.LoSoTo.Steps.plotA1.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotA1.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotA1.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotA1.Prefix                 =   plots-cd/ampPF_
+losotoCD.argument.LoSoTo.Steps.flag.Operation                =   FLAG
+losotoCD.argument.LoSoTo.Steps.flag.Soltab                   =   [sol000/amplitude000]
+losotoCD.argument.LoSoTo.Steps.flag.Axes                     =   [time]
+losotoCD.argument.LoSoTo.Steps.flag.MaxCycles                =   1
+losotoCD.argument.LoSoTo.Steps.flag.MaxRms                   =   5
+losotoCD.argument.LoSoTo.Steps.flag.Order                    =   [100] 
+losotoCD.argument.LoSoTo.Steps.flag.Replce                   =   False
+losotoCD.argument.LoSoTo.Steps.flag.PreFlagZeros             =   False
+losotoCD.argument.LoSoTo.Steps.flag.Mode                     =   smooth
+losotoCD.argument.LoSoTo.Steps.flagextend.Operation          =   FLAGEXTEND
+losotoCD.argument.LoSoTo.Steps.flagextend.Soltab             =   [sol000/amplitude000]
+losotoCD.argument.LoSoTo.Steps.flagextend.Axes               =   [freq,time]
+losotoCD.argument.LoSoTo.Steps.flagextend.Percent            =   50
+losotoCD.argument.LoSoTo.Steps.flagextend.Size               =   [50,100]
+losotoCD.argument.LoSoTo.Steps.flagextend.Cycles             =   3
+losotoCD.argument.LoSoTo.Steps.plotA2.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotA2.Soltab                 =   [sol000/amplitude000]
+losotoCD.argument.LoSoTo.Steps.plotA2.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotA2.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotA2.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotA2.Prefix                 =   plots-cd/ampAF_
+losotoCD.argument.LoSoTo.Steps.merge.Operation               =   REWEIGHT
+losotoCD.argument.LoSoTo.Steps.merge.Soltab                  =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.merge.MergeFromSoltab         =   sol000/amplitude000
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.Operation        =   DUPLICATE
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.InTable          =   sol000/phase000
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.OutTable         =   sol000/phaseOrig000
+losotoCD.argument.LoSoTo.Steps.plotPi.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPi.Soltab                 =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPi.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotPi.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotPi.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotPi.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotPi.Prefix                 =   plots-cd/ph-init_
+losotoCD.argument.LoSoTo.Steps.plotPi.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotPi.MinMax                 =   [-3.14,3.14]
+losotoCD.argument.LoSoTo.Steps.plotPi2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPi2.Soltab                =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPi2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotPi2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotPi2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotPi2.ColorAxis              =   pol
+losotoCD.argument.LoSoTo.Steps.plotPi2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotPi2.Prefix                =   plots-cd/ph-init_
+losotoCD.argument.LoSoTo.Steps.plotPi2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.crossdelay.Soltab             =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.crossdelay.Operation          =   CROSSDELAY
+losotoCD.argument.LoSoTo.Steps.crossdelay.OutTable           =   crossdelay
+losotoCD.argument.LoSoTo.Steps.plotCD.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotCD.Soltab                 =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotCD.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotCD.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotCD.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotCD.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotCD.Prefix                 =   plots-cd/ph-CD_
+losotoCD.argument.LoSoTo.Steps.plotCD.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotCD2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotCD2.Soltab                =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotCD2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotCD2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotCD2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotCD2.ColorAxis             =   pol
+losotoCD.argument.LoSoTo.Steps.plotCD2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotCD2.Prefix                =   plots-cd/ph-CD_
+losotoCD.argument.LoSoTo.Steps.plotCD2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.residuals.Operation           =   RESIDUALS
+losotoCD.argument.LoSoTo.Steps.residuals.Soltab              =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.residuals.Sub                 =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotPr.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPr.Soltab                 =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPr.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotPr.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotPr.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotPr.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotPr.Prefix                 =   plots-cd/ph-res_
+losotoCD.argument.LoSoTo.Steps.plotPr.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotPr.MinMax                 =   [-3.14,3.14]
+losotoCD.argument.LoSoTo.Steps.plotPr2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPr2.Soltab                =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPr2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotPr2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotPr2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotPr2.ColorAxis             =   pol
+losotoCD.argument.LoSoTo.Steps.plotPr2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotPr2.Prefix                =   plots-cd/ph-res_
+losotoCD.argument.LoSoTo.Steps.plotPr2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.reset.Operation               =   RESET
+losotoCD.argument.LoSoTo.Steps.reset.Soltab                  =   [sol000/amplitude000]
+
+### Step: 16c
+### --- Export cross-delays to globaldb2
+h5parmexpCD.control.type                                     =   executable_args
+h5parmexpCD.control.executable                               =   {{ scripts }}/H5parm_exporter.py
+h5parmexpCD.argument.flags                                   =   [-v,-c,-t,"amplitude000;crossdelay",h5parmCD.output.mapfile,globaldbCD.output.mapfile]
+
+### Step: 16d
+### --- List new solution tables
+listsolCD.control.kind                                       =   plugin                                    # plugin -> short, non-parallel step
+listsolCD.control.type                                       =   createMapfile                             # generate a new mapfile
+listsolCD.control.method                                     =   mapfile_from_folder                       # look for all files in a given directory
+listsolCD.control.folder                                     =   {{ job_directory }}/{{ job_name }}.calibrator-globaldbCD   # directory in which to look for the data
+listsolCD.control.mapfile_dir                                =   input.output.mapfile_dir                  # put the mapfile into the runtime directory
+listsolCD.control.filename                                   =   listsolCD.mapfile                         # name of the generated mapfile
+listsolCD.control.pattern                                    =   sol000_instrument*   
+
+### Step: 16e
+# Find appropriate MSs to match with phase solutions (which are probably from a group)
+# This is a custom plugin. It is matching the frequency information of the parmdbs with the corresponding measurement sets
+match_files_calCD.control.kind                               =   plugin
+match_files_calCD.control.type                               =   FindCorrespondingMSX
+match_files_calCD.control.mapfile_dir                        =   input.output.mapfile_dir
+match_files_calCD.control.filename                           =   match_files_calCD.mapfile
+match_files_calCD.control.mapfile_grpd                       =   listsolCD.output.mapfile
+match_files_calCD.control.mapfile_ms                         =   flagcal.output.mapfile
+
+### Step: 17
+### --- Apply CrossDelay correction
+applyCD.control.type                                         =   dppp
+applyCD.control.inplace                                      =   True
+applyCD.control.error_tolerance                              =   {{ error_tolerance }}
+applyCD.control.max_per_node                                 =   {{ max_per_node_limit }}
+applyCD.control.mapfiles_in                                  =   [match_files_calCD.output.mapfile,match_files_calCD.output.parmdbs]
+applyCD.control.inputkeys                                    =   [infiles,parmdbs]
+applyCD.argument.numthreads                                  =   {{ max_dppp_threads }}
+applyCD.argument.msin                                        =   infiles
+applyCD.argument.msin.datacolumn                             =   CORRECTED_DATA
+applyCD.argument.msout.datacolumn                            =   CORRECTED_DATA
+applyCD.argument.steps                                       =   [correct]
+applyCD.argument.correct.type                                =   correct
+applyCD.argument.correct.parmdb                              =   parmdbs
+applyCD.argument.correct.correction                          =   gain
+
+### Step: 18
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldb2.control.type                                       =   executable_args
+globaldb2.control.executable                                 =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldb2.argument.flags                                     =   [-v,-d,findvds.output.mapfile,-g,outputkey]
+
+### Step: 19a
+### --- Import globaldb to h5parm
+h5parm2.control.type                                         =   executable_args
+h5parm2.control.executable                                   =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parm2.argument.flags                                       =   [-v,outputkey,globaldb2.output.mapfile]
+
+### Step: 19b
+### --- Running losoto for plotting, flagging and deriving a smoothed bandpass
+losotoflag.control.type                                      =   executable_args
+losotoflag.control.executable                                =   {{ losoto_directory }}/bin/losoto
+losotoflag.control.parsetasfile                              =   True
+losotoflag.control.args_format                               =   losoto
+losotoflag.argument.flags                                    =   [-v,h5parm2.output.mapfile]
+losotoflag.argument.LoSoTo.Steps                             =   [plotA1, flag, flagextend, plotA2, merge]
+losotoflag.argument.LoSoTo.Solset                            =   [sol000]
+losotoflag.argument.LoSoTo.Soltab                            =   []
+losotoflag.argument.LoSoTo.SolType                           =   []
+losotoflag.argument.LoSoTo.ant                               =   []
+losotoflag.argument.LoSoTo.pol                               =   [XX, YY]
+losotoflag.argument.LoSoTo.dir                               =   []
+losotoflag.argument.LoSoTo.Ncpu                              =   {{ max_per_node }}
+losotoflag.argument.LoSoTo.Steps.plotA1.Operation            =   PLOT
+losotoflag.argument.LoSoTo.Steps.plotA1.Soltab               =   [sol000/amplitude000]
+losotoflag.argument.LoSoTo.Steps.plotA1.Axes                 =   [time,freq]
+losotoflag.argument.LoSoTo.Steps.plotA1.TableAxis            =   ant
+losotoflag.argument.LoSoTo.Steps.plotA1.PlotFlag             =   True
+losotoflag.argument.LoSoTo.Steps.plotA1.Prefix               =   plots/ampPF_
+losotoflag.argument.LoSoTo.Steps.flag.Operation              =   FLAG
+losotoflag.argument.LoSoTo.Steps.flag.Soltab                 =   [sol000/amplitude000]
+losotoflag.argument.LoSoTo.Steps.flag.Axes                   =   [time]
+losotoflag.argument.LoSoTo.Steps.flag.MaxCycles              =   1
+losotoflag.argument.LoSoTo.Steps.flag.MaxRms                 =   5
+losotoflag.argument.LoSoTo.Steps.flag.Order                  =   [100] 
+losotoflag.argument.LoSoTo.Steps.flag.Replce                 =   False
+losotoflag.argument.LoSoTo.Steps.flag.PreFlagZeros           =   False
+losotoflag.argument.LoSoTo.Steps.flag.Mode                   =   smooth
+losotoflag.argument.LoSoTo.Steps.flagextend.Operation        =   FLAGEXTEND
+losotoflag.argument.LoSoTo.Steps.flagextend.Soltab           =   [sol000/amplitude000]
+losotoflag.argument.LoSoTo.Steps.flagextend.Axes             =   [freq,time]
+losotoflag.argument.LoSoTo.Steps.flagextend.Percent          =   50
+losotoflag.argument.LoSoTo.Steps.flagextend.Size             =   [50,100]
+losotoflag.argument.LoSoTo.Steps.flagextend.Cycles           =   3
+losotoflag.argument.LoSoTo.Steps.plotA2.Operation            =   PLOT
+losotoflag.argument.LoSoTo.Steps.plotA2.Soltab               =   [sol000/amplitude000]
+losotoflag.argument.LoSoTo.Steps.plotA2.Axes                 =   [time,freq]
+losotoflag.argument.LoSoTo.Steps.plotA2.TableAxis            =   ant
+losotoflag.argument.LoSoTo.Steps.plotA2.PlotFlag             =   True
+losotoflag.argument.LoSoTo.Steps.plotA2.Prefix               =   plots/ampAF_
+losotoflag.argument.LoSoTo.Steps.merge.Operation             =   REWEIGHT
+losotoflag.argument.LoSoTo.Steps.merge.Soltab                =   [sol000/phase000]
+losotoflag.argument.LoSoTo.Steps.merge.MergeFromSoltab       =   sol000/amplitude000
+
+### Step: 19c
+### --- Running losoto for performing Clock/TEC separation
+losotoampclock.control.type                                  =   executable_args
+losotoampclock.control.executable                            =   {{ losoto_directory }}/bin/losoto
+losotoampclock.control.parsetasfile                          =   True
+losotoampclock.control.args_format                           =   losoto
+losotoampclock.argument.flags                                =   [-v,h5parm2.output.mapfile]
+losotoampclock.argument.LoSoTo.Steps                         =   [duplicatePbkp, plotPi1, plotPi2, plotPi3, ct, plotCLOCK, plotTEC, plotTEC3, residuals, plotPr1, plotPr2, plotPr3, flag, plotPrf2, plotPrf3, smoothP, merge, duplicateAbkp, plotAi1, plotAi2, plotAi3, duplicateA, smoothA, plotAs, plotAs2, residualA, plotAr1, plotAr2, plotAr3]
+losotoampclock.argument.LoSoTo.Solset                        =   [sol000]
+losotoampclock.argument.LoSoTo.Soltab                        =   []
+losotoampclock.argument.LoSoTo.SolType                       =   []
+losotoampclock.argument.LoSoTo.ant                           =   []
+losotoampclock.argument.LoSoTo.pol                           =   []
+losotoampclock.argument.LoSoTo.dir                           =   []
+losotoampclock.argument.LoSoTo.Ncpu                          =   {{ max_per_node }}
+losotoampclock.argument.LoSoTo.Steps.duplicatePbkp.Operation =   DUPLICATE
+losotoampclock.argument.LoSoTo.Steps.duplicatePbkp.InTable   =   sol000/phase000
+losotoampclock.argument.LoSoTo.Steps.duplicatePbkp.OutTable  =   sol000/phaseOrig000
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPi1.freq.minmax     =   [0,100e6,50]
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Axes            =   time
+losotoampclock.argument.LoSoTo.Steps.plotPi1.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPi1.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotPi1.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Prefix          =   plots-clocktec/ph_
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPi1.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.plotPi1.Columns         =   4
+losotoampclock.argument.LoSoTo.Steps.plotPi1.FigSize         =   [20,20]
+losotoampclock.argument.LoSoTo.Steps.plotPi2.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPi2.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPi2.time.minmax     =   [0,1e20,500]
+losotoampclock.argument.LoSoTo.Steps.plotPi2.Axes            =   freq
+losotoampclock.argument.LoSoTo.Steps.plotPi2.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPi2.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotPi2.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPi2.Prefix          =   plots-clocktec/ph_
+losotoampclock.argument.LoSoTo.Steps.plotPi2.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPi2.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.plotPi3.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPi3.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPi3.Axes            =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotPi3.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPi3.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPi3.Prefix          =   plots-clocktec/ph_
+losotoampclock.argument.LoSoTo.Steps.plotPi3.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPi3.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.ct.Operation            =   CLOCKTEC
+losotoampclock.argument.LoSoTo.Steps.ct.Soltab               =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.ct.CombinePol           =   True
+losotoampclock.argument.LoSoTo.Steps.ct.FlagBadChannels      =   False
+losotoampclock.argument.LoSoTo.Steps.ct.Fit3rdOrder          =   False
+losotoampclock.argument.LoSoTo.Steps.ct.Circular             =   False
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.Operation     =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.Soltab        =   [sol000/clock000]
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.Axes          =   [time]
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.TableAxis     =   ant
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.Prefix        =   plots-clocktec/clock
+losotoampclock.argument.LoSoTo.Steps.plotCLOCK.PlotFlag      =   False
+losotoampclock.argument.LoSoTo.Steps.plotTEC.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotTEC.Soltab          =   [sol000/tec000]
+losotoampclock.argument.LoSoTo.Steps.plotTEC.Axes            =   [time]
+losotoampclock.argument.LoSoTo.Steps.plotTEC.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotTEC.Prefix          =   plots-clocktec/tec
+losotoampclock.argument.LoSoTo.Steps.plotTEC.PlotFlag        =   False
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.Operation      =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.Soltab         =   [sol000/tec3rd000]
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.Axes           =   [time]
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.TableAxis      =   ant
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.Prefix         =   plots-clocktec/tec3rd
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.MinMax         =   [-300,300]
+losotoampclock.argument.LoSoTo.Steps.plotTEC3.PlotFlag       =   False
+losotoampclock.argument.LoSoTo.Steps.residuals.Operation     =   RESIDUALS
+losotoampclock.argument.LoSoTo.Steps.residuals.Soltab        =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.residuals.Sub           =   [sol000/tec000,sol000/clock000]
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPr1.freq.minmax     =   [0,100e6,50]
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Axes            =   time
+losotoampclock.argument.LoSoTo.Steps.plotPr1.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPr1.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotPr1.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Prefix          =   plots-clocktec/phRes_
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPr1.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.plotPr1.Columns         =   4
+losotoampclock.argument.LoSoTo.Steps.plotPr1.FigSize         =   [20,20]
+losotoampclock.argument.LoSoTo.Steps.plotPr2.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPr2.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPr2.time.minmax     =   [0,1e20,500]
+losotoampclock.argument.LoSoTo.Steps.plotPr2.Axes            =   freq
+losotoampclock.argument.LoSoTo.Steps.plotPr2.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPr2.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotPr2.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPr2.Prefix          =   plots-clocktec/phRes_
+losotoampclock.argument.LoSoTo.Steps.plotPr2.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPr2.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.plotPr3.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPr3.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPr3.Axes            =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotPr3.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPr3.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotPr3.Prefix          =   plots-clocktec/phRes_
+losotoampclock.argument.LoSoTo.Steps.plotPr3.Reference       =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPr3.MinMax          =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.flag.Operation          =   FLAG
+losotoampclock.argument.LoSoTo.Steps.flag.Soltab             =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.flag.Axes               =   [time]
+losotoampclock.argument.LoSoTo.Steps.flag.MaxCycles          =   1
+losotoampclock.argument.LoSoTo.Steps.flag.MaxRms             =   5
+losotoampclock.argument.LoSoTo.Steps.flag.Order              =   [1200]
+losotoampclock.argument.LoSoTo.Steps.flag.Replce             =   False
+losotoampclock.argument.LoSoTo.Steps.flag.PreFlagZeros       =   False
+losotoampclock.argument.LoSoTo.Steps.flag.Mode               =   smooth
+losotoampclock.argument.LoSoTo.Steps.flag.Reference          =  'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.Operation      =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.Soltab         =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.freq.minmax    =   [0,100e6,50]
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.Axes           =   time
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.TableAxis      =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.ColorAxis      =   pol
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.PlotFlag       =   True
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.Prefix         =   plots-clocktec/phResFlag_
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.Reference      =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.MinMax         =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.plotPrf2.FigSize        =   [20,20]
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.Operation      =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.Soltab         =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.Axes           =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.TableAxis      =   ant
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.PlotFlag       =   True
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.Prefix         =   plots-clocktec/phResFlag_
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.Reference      =   'CS001LBA'
+losotoampclock.argument.LoSoTo.Steps.plotPrf3.MinMax         =   [-3.14,3.14]
+losotoampclock.argument.LoSoTo.Steps.smoothP.Operation       =   SMOOTH
+losotoampclock.argument.LoSoTo.Steps.smoothP.Soltab          =   [sol000/phase000]
+losotoampclock.argument.LoSoTo.Steps.smoothP.Axes            =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.smoothP.Mode            =   median
+losotoampclock.argument.LoSoTo.Steps.merge.Operation         =   REWEIGHT
+losotoampclock.argument.LoSoTo.Steps.merge.Soltab            =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.merge.MergeFromSoltab   =   sol000/phase000
+losotoampclock.argument.LoSoTo.Steps.duplicateAbkp.Operation =   DUPLICATE
+losotoampclock.argument.LoSoTo.Steps.duplicateAbkp.InTable   =   sol000/amplitude000
+losotoampclock.argument.LoSoTo.Steps.duplicateAbkp.OutTable  =   sol000/amplitudeOrig000
+losotoampclock.argument.LoSoTo.Steps.plotAi1.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAi1.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAi1.freq.minmax     =   [0,100e6,50]
+losotoampclock.argument.LoSoTo.Steps.plotAi1.Axes            =   time
+losotoampclock.argument.LoSoTo.Steps.plotAi1.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAi1.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotAi1.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAi1.Prefix          =   plots-amp/amp_
+losotoampclock.argument.LoSoTo.Steps.plotAi1.Columns         =   4
+losotoampclock.argument.LoSoTo.Steps.plotAi1.FigSize         =   [20,20]
+losotoampclock.argument.LoSoTo.Steps.plotAi2.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAi2.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAi2.time.minmax     =   [0,1e20,500]
+losotoampclock.argument.LoSoTo.Steps.plotAi2.Axes            =   freq
+losotoampclock.argument.LoSoTo.Steps.plotAi2.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAi2.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotAi2.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAi2.Prefix          =   plots-amp/amp_
+losotoampclock.argument.LoSoTo.Steps.plotAi3.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAi3.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAi3.Axes            =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotAi3.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAi3.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAi3.Prefix          =   plots-amp/amp_
+losotoampclock.argument.LoSoTo.Steps.duplicateA.Operation    =   DUPLICATE
+losotoampclock.argument.LoSoTo.Steps.duplicateA.InTable      =   sol000/amplitude000
+losotoampclock.argument.LoSoTo.Steps.duplicateA.OutTable     =   sol000/amplitudeSmooth000
+losotoampclock.argument.LoSoTo.Steps.smoothA.Operation       =   SMOOTH
+losotoampclock.argument.LoSoTo.Steps.smoothA.Soltab          =   [sol000/amplitudeSmooth000]
+losotoampclock.argument.LoSoTo.Steps.smoothA.Axes            =   [time]
+losotoampclock.argument.LoSoTo.Steps.smoothA.Mode            =   median
+losotoampclock.argument.LoSoTo.Steps.plotAs.Operation        =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAs.Soltab           =   [sol000/amplitudeSmooth000]
+losotoampclock.argument.LoSoTo.Steps.plotAs.Axes             =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotAs.TableAxis        =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAs.PlotFlag         =   True
+losotoampclock.argument.LoSoTo.Steps.plotAs.Prefix           =   plots-amp/ampSmooth_
+losotoampclock.argument.LoSoTo.Steps.plotAs2.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAs2.Soltab          =   [sol000/amplitudeSmooth000]
+losotoampclock.argument.LoSoTo.Steps.plotAs2.Axes            =   freq
+losotoampclock.argument.LoSoTo.Steps.plotAs2.time.minmax     =   [0,1e20,50000]
+losotoampclock.argument.LoSoTo.Steps.plotAs2.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAs2.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotAs2.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAs2.Prefix          =   plots-amp/ampSmooth2_
+losotoampclock.argument.LoSoTo.Steps.residualA.Operation     =   RESIDUALS
+losotoampclock.argument.LoSoTo.Steps.residualA.Soltab        =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.residualA.Sub           =   [sol000/amplitudeSmooth000]
+losotoampclock.argument.LoSoTo.Steps.residualA.Ratio         =   True
+losotoampclock.argument.LoSoTo.Steps.plotAr1.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAr1.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAr1.freq.minmax     =   [0,100e6,50]
+losotoampclock.argument.LoSoTo.Steps.plotAr1.Axes            =   time
+losotoampclock.argument.LoSoTo.Steps.plotAr1.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAr1.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotAr1.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAr1.Prefix          =   plots-amp/ampRes_
+losotoampclock.argument.LoSoTo.Steps.plotAr1.Columns         =   4
+losotoampclock.argument.LoSoTo.Steps.plotAr1.FigSize         =   [20,20]
+losotoampclock.argument.LoSoTo.Steps.plotAr2.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAr2.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAr2.time.minmax     =   [0,1e20,500]
+losotoampclock.argument.LoSoTo.Steps.plotAr2.Axes            =   freq
+losotoampclock.argument.LoSoTo.Steps.plotAr2.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAr2.ColorAxis       =   pol
+losotoampclock.argument.LoSoTo.Steps.plotAr2.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAr2.Prefix          =   plots-amp/ampRes_
+losotoampclock.argument.LoSoTo.Steps.plotAr3.Operation       =   PLOT
+losotoampclock.argument.LoSoTo.Steps.plotAr3.Soltab          =   [sol000/amplitude000]
+losotoampclock.argument.LoSoTo.Steps.plotAr3.Axes            =   [time,freq]
+losotoampclock.argument.LoSoTo.Steps.plotAr3.TableAxis       =   ant
+losotoampclock.argument.LoSoTo.Steps.plotAr3.PlotFlag        =   True
+losotoampclock.argument.LoSoTo.Steps.plotAr3.Prefix          =   plots-amp/ampRes_
+
+### Step: 19d
+### --- Export bandpass, phases and clock from h5parm to globaldb-clock
+h5parmexpampclock.control.type                               =   executable_args
+h5parmexpampclock.control.executable                         =   {{ scripts }}/H5parm_exporter.py
+h5parmexpampclock.argument.flags                             =   [-v,-c,-t,"amplitudeSmooth000;{{ tables2export }}",h5parm2.output.mapfile,globaldbampclock.output.mapfile]
+
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    End of calibrator pipeline                                                                                                                              ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################

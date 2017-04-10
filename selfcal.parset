@@ -1,0 +1,86 @@
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    Beginning of selfcal pipeline                                                                                                                         ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
+
+### Steps to run
+pipeline.steps = [listsplit,listtemp2,addcol,sky_tar,sourcedbtar,listsourcedbtar,predicttar]
+
+################################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################################
+
+### Step: 00a
+### --- Map splitted files
+listsplit.control.kind                                       =   plugin                     # plugin -> short, non-parallel step
+listsplit.control.type                                       =   createMapfile              # generate a new mapfile
+listsplit.control.method                                     =   mapfile_from_folder        # look for all files in a given directory
+listsplit.control.folder                                     =   {{ job_directory }}        # directory in which to look for the data
+listsplit.control.mapfile_dir                                =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listsplit.control.filename                                   =   listsplit.mapfile          # name of the generated mapfile
+listsplit.control.pattern                                    =   *.split                    # use only files that match this pattern
+
+### Step: 00b
+### --- List of the single calibrator MS which is used as a template for making a skymodel
+listtemp2.control.kind                                       =   plugin                     # plugin -> short, non-parallel step
+listtemp2.control.type                                       =   createMapfile              # generate a new mapfile
+listtemp2.control.method                                     =   mapfile_from_folder        # look for all files in a given directory
+listtemp2.control.folder                                     =   {{ target_directory }}     # directory in which to look for the data
+listtemp2.control.mapfile_dir                                =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listtemp2.control.filename                                   =   listtemp2.mapfile           # name of the generated mapfile
+listtemp2.control.pattern                                    =   {{ target_template }}      # use only files that match this pattern
+
+### Step: 01
+### --- Adding MODEL columns
+addcol.control.type                                          =   executable_args
+addcol.control.max_per_node                                  =   {{ max_per_node_limit }}
+addcol.control.executable                                    =   {{ scripts }}/addcol2ms.py
+addcol.argument.flags                                        =   [-m,listsplit.output.mapfile,outputkey,-c,MODEL_DATA_HIGHRES]
+
+### Step: 02
+# Download the TGSS ADR skymodel for the target
+sky_tar.control.type                                         =   pythonplugin  
+sky_tar.control.executable                                   =   {{ scripts }}/download_tgss_skymodel_target.py
+sky_tar.argument.flags                                       =   [listtemp2.output.mapfile]
+sky_tar.argument.DoDownload                                  =   True
+sky_tar.argument.SkymodelPath                                =   {{ job_directory }}/{{ target }}.skymodel
+sky_tar.argument.Radius                                      =   5.                                                                #in degrees
+
+### Step: 03a
+### --- Create skymodel for target
+sourcedbtar.control.type                                     =   setupsourcedb
+sourcedbtar.control.cmdline.mapfile                          =   listtemp2.output.mapfile
+sourcedbtar.control.skymodel                                 =   {{ job_directory }}/{{ target }}.skymodel
+
+### Step: 03b
+### --- Expand skymodel mapfile to the amount of target files
+listsourcedbtar.control.kind                                 =   plugin
+listsourcedbtar.control.type                                 =   expandMapfile
+listsourcedbtar.control.mapfile_in                           =   sourcedbtar.output.mapfile
+listsourcedbtar.control.mapfile_ref                          =   listsplit.output.mapfile
+listsourcedbtar.control.mapfile_dir                          =   input.output.mapfile_dir
+listsourcedbtar.control.filename                             =   listsourcedbtar.mapfile
+
+### Step: 04
+### --- Add target model to MODEL_DATA
+predicttar.control.type                                      =   dppp
+predicttar.control.inplace                                   =   True
+predicttar.control.max_per_node                              =   {{ max_per_node_limit }}
+predicttar.control.error_tolerance                           =   {{ error_tolerance }}
+predicttar.argument.numthreads                               =   {{ max_dppp_threads }}
+predicttar.argument.msin                                     =   listsplit.output.mapfile
+predicttar.argument.msin.baseline                            =   [CR]S*&
+predicttar.argument.msin.datacolumn                          =   DATA
+predicttar.argument.msout.datacolumn                         =   MODEL_DATA
+predicttar.argument.steps                                    =   [predict]
+predicttar.argument.predict.type                             =   predict
+predicttar.argument.predict.sourcedb                         =   listsourcedbtar.output.mapfile
+predicttar.argument.predict.usebeammodel                     =   True
+predicttar.argument.predict.usechannelfreq                   =   True
+predicttar.argument.predict.beammode                         =   array_factor
+
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    End of selfcal pipeline                                                                                                                                 ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################

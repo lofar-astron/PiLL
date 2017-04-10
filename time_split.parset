@@ -1,0 +1,174 @@
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    Beginning of timesplit pipeline                                                                                                                         ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
+
+### Steps to run
+# pipeline.steps = [listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,lintocirctar,applysol,concat,split]
+pipeline.steps = [listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,applysol,concat,split]
+
+################################################################################################################################################################################################################################################################
+################################################################################################################################################################################################################################################################
+
+### Step: 00
+### --- List new solution tables (in preparation for the target field)
+listsolampclock.control.kind                                 =   plugin                                        # plugin -> short, non-parallel step
+listsolampclock.control.type                                 =   createMapfile                                 # generate a new mapfile
+listsolampclock.control.method                               =   mapfile_from_folder                           # look for all files in a given directory
+listsolampclock.control.folder                               =   {{ job_directory }}/{{ job_name }}.calibrator-globaldbampclock # directory in which to look for the data
+listsolampclock.control.mapfile_dir                          =   input.output.mapfile_dir                      # put the mapfile into the runtime directory
+listsolampclock.control.filename                             =   listsolampclock.mapfile                       # name of the generated mapfile
+listsolampclock.control.pattern                              =   sol000_instrument*
+
+### Step: 01a
+### --- List of target files that will be processed in later steps
+listtar.control.kind                                         =   plugin                     # plugin -> short, non-parallel step
+listtar.control.type                                         =   createMapfile              # generate a new mapfile
+listtar.control.method                                       =   mapfile_from_folder        # look for all files in a given directory
+listtar.control.folder                                       =   {{ target_directory }}     # directory in which to look for the data
+listtar.control.mapfile_dir                                  =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listtar.control.filename                                     =   listtar.mapfile            # name of the generated mapfile
+listtar.control.pattern                                      =   {{ target_pattern }}       # use only files that match this pattern
+
+### Step: 01b
+# Find appropriate MSs to match with phase solutions (which are probably from a group)
+# This is a custom plugin. It is matching the frequency information of the parmdbs with the corresponding measurement sets
+match_files_tar.control.kind                                 =   plugin
+match_files_tar.control.type                                 =   FindCorrespondingMSX
+match_files_tar.control.mapfile_dir                          =   input.output.mapfile_dir
+match_files_tar.control.filename                             =   match_files_tar.mapfile
+match_files_tar.control.mapfile_grpd                         =   listsolampclock.output.mapfile
+match_files_tar.control.mapfile_ms                           =   listtar.output.mapfile
+
+### Step: 02
+### --- Data preparation for the target
+flagtar.control.type                                         =   dppp
+flagtar.control.max_per_node                                 =   {{ max_per_node_limit }}
+flagtar.control.error_tolerance                              =   {{ error_tolerance }}
+flagtar.argument.numthreads                                  =   {{ max_dppp_threads }}
+flagtar.argument.msin                                        =   match_files_tar.output.mapfile
+flagtar.argument.msin.baseline                               =   [CR]S*&&
+flagtar.argument.msin.datacolumn                             =   DATA
+flagtar.argument.msout.datacolumn                            =   DATA
+flagtar.argument.msout.writefullresflag                      =   False
+flagtar.argument.steps                                       =   [filter,flagelevation,flag,avg,count,applybeam]
+flagtar.argument.filter.type                                 =   filter
+flagtar.argument.filter.baseline                             =   CS*&&;CS*&&RS*;RS*&&{{ bad_stations }}
+flagtar.argument.filter.remove                               =   True
+flagtar.argument.flagelevation.type                          =   preflagger
+flagtar.argument.flagelevation.elevation                     =   0deg..30deg
+flagtar.argument.flag.type                                   =   aoflagger
+flagtar.argument.flag.keepstatistics                         =   True
+flagtar.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
+flagtar.argument.avg.type                                    =   averager
+flagtar.argument.avg.freqstep                                =   {{ average_freqstep }}
+flagtar.argument.avg.timestep                                =   {{ average_timestep }}
+flagtar.argument.applybeam.type                              =   applybeam
+flagtar.argument.applybeam.invert                            =   True
+flagtar.argument.applybeam.usechannelfreq                    =   False
+flagtar.argument.applybeam.updateweights                     =   True    # add reweight
+
+### Step: 03a
+# combine all entries into one mapfile, for the sortmap script
+combine_target_map.control.kind                              =   plugin
+combine_target_map.control.type                              =   createMapfile
+combine_target_map.control.method                            =   mapfile_all_to_one
+combine_target_map.control.mapfile_dir                       =   input.output.mapfile_dir
+combine_target_map.control.filename                          =   combine_tar_map.mapfile
+combine_target_map.control.mapfile_in                        =   flagtar.output.mapfile
+
+### Step: 03b
+# sort the target data by frequency into groups so that NDPPP can concatenate them
+sortmap_target.control.type                                  =   pythonplugin  
+sortmap_target.control.executable                            =   {{ scripts }}/sort_times_into_freqGroups.py
+sortmap_target.argument.flags                                =   [combine_target_map.output.mapfile]
+sortmap_target.argument.filename                             =   sortmap_target
+sortmap_target.argument.mapfile_dir                          =   input.output.mapfile_dir
+sortmap_target.argument.target_path                          =   {{ job_directory }}
+sortmap_target.argument.numSB                                =   {{ chunks }}
+sortmap_target.argument.NDPPPfill                            =   True
+sortmap_target.argument.stepname                             =   dpppconcat
+sortmap_target.argument.firstSB                              =   None
+sortmap_target.argument.truncateLastSBs                      =   {{ truncate_last_SBs }}     # This means that a excess subbands that don't make a full group get discarded
+
+### Step: 03c
+# convert the output of sortmap_target into usable mapfiles
+do_sortmap_maps.control.kind                                 =   plugin
+do_sortmap_maps.control.type                                 =   mapfilenamesFromMapfiles
+do_sortmap_maps.control.mapfile_groupmap                     =   sortmap_target.output.groupmapfile.mapfile
+do_sortmap_maps.control.mapfile_datamap                      =   sortmap_target.output.mapfile.mapfile
+
+### Step: 03d
+### --- Update mapfile for converting the target to circular
+listcolumn2.control.kind                                     =   plugin
+listcolumn2.control.type                                     =   changeMapfile
+listcolumn2.control.mapfile_in                               =   flagtar.output.mapfile
+listcolumn2.control.join_files                               =   :DATA
+listcolumn2.control.newname                                  =   listcolumn2.mapfile
+
+### Step: 04
+### --- Convert to circular
+# lintocirctar.control.type                                    =   executable_args
+# lintocirctar.control.max_per_node                            =   {{ max_per_node_limit }}
+# lintocirctar.control.error_tolerance                         =   {{ error_tolerance }}
+# lintocirctar.control.executable                              =   {{ scripts }}/mslin2circ.py
+# lintocirctar.argument.flags                                  =   [-s,-w,-i,listcolumn2.output.mapfile,-o,listcolumn2.output.mapfile]
+
+### Step: 05
+### --- Apply bandpass and clock correction
+applysol.control.type                                        =   dppp
+applysol.control.inplace                                     =   True
+applysol.control.error_tolerance                             =   {{ error_tolerance }}
+applysol.control.max_per_node                                =   {{ max_per_node_limit }}
+applysol.control.mapfiles_in                                 =   [flagtar.output.mapfile,match_files_tar.output.parmdbs]
+applysol.control.inputkeys                                   =   [infiles,parmdbs]
+applysol.argument.numthreads                                 =   {{ max_dppp_threads }}
+applysol.argument.msin                                       =   infiles
+applysol.argument.msin.datacolumn                            =   DATA
+applysol.argument.msout.datacolumn                           =   CORRECTED_DATA
+applysol.argument.steps                                      =   [{{ tables2apply }}]
+applysol.argument.correctamp.type                            =   correct
+applysol.argument.correctamp.parmdb                          =   parmdbs
+applysol.argument.correctamp.correction                      =   gain
+applysol.argument.correctamp.updateweights                   =   True # add reweight
+applysol.argument.correctclock.type                          =   correct
+applysol.argument.correctclock.parmdb                        =   parmdbs
+applysol.argument.correctclock.correction                    =   clock
+
+### Step: 06
+### --- Re-set weights of flagged data to 0 -- only needed if Dysco is used
+# flagweight.control.type                                      =   executable_args
+# flagweight.control.executable                                =   {{ scripts }}/flag_weight_to_zero.py
+# flagweight.argument.flags                                    =   [flagtar.output.mapfile]
+
+### Step: 07
+### --- Concatenate target observation
+concat.control.type                                          =   dppp
+concat.control.error_tolerance                               =   {{ error_tolerance }}
+concat.control.max_per_node                                  =   {{ max_per_node_limit }}
+concat.control.mapfile_in                                    =   do_sortmap_maps.output.datamap
+concat.control.mapfile_out                                   =   do_sortmap_maps.output.groupmap # tell the pipeline to give the output useful names
+concat.control.inputkey                                      =   msin
+concat.argument.numthreads                                   =   {{ max_dppp_threads }}
+concat.argument.msin.baseline                                =   [CR]S*&
+concat.argument.msin.datacolumn                              =   CORRECTED_DATA 
+concat.argument.msin.missingdata                             =   True
+concat.argument.msin.orderms                                 =   False
+concat.argument.msout.writefullresflag                       =   False
+concat.argument.steps                                        =   [flag, count]
+concat.argument.flag.type                                    =   aoflagger
+concat.argument.flag.keepstatistics                          =   True
+concat.argument.flag.strategy                                =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
+
+### Step: 08a
+### --- Split MS by time
+split.control.type                                           =   executable_args
+split.control.executable                                     =   {{ scripts }}/split_ms_by_time.py
+split.argument.flags                                         =   [concat.output.mapfile,outputkey,{{ timechunk }}]
+
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    End of timesplit pipeline                                                                                                                               ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
