@@ -6,7 +6,7 @@
 import os, sys
 import logging
 import optparse
-from factor import process
+import resource
 
 _version = '1.0'
 
@@ -131,6 +131,22 @@ if __name__=='__main__':
 		#pass
 	os.system('mkdir -pv ' + working_directory)
 	
+	# checking number of files limit
+	try:
+		nof_files_limits = resource.getrlimit(resource.RLIMIT_NOFILE)
+		logging.info('Setting limit for number of open files to: {}.'.format(nof_files_limits[1]))
+		resource.setrlimit(resource.RLIMIT_NOFILE,(nof_files_limits[1],nof_files_limits[1]))
+		nof_files_limits = resource.getrlimit(resource.RLIMIT_NOFILE)
+		logging.info('Active limit for number of open files is {0}, maximum limit is {1}.'.format(nof_files_limits[0],nof_files_limits[1]))
+		if nof_files_limits[0] < 2048:
+			logging.error('The limit for number of open files is small, this could results in a "Too many open files" problem when running PiLL.')
+			logging.error('The active limit can be increased to the maximum for the user with: "ulimit -Sn <number>" (bash) or "limit descriptors 1024" (csh).')
+			pass
+		pass
+	except resource.error:
+		logging.error('Cannot check limits for number of open files.')
+		pass
+        
 	# creating cluster description file
 	create_clusterdesc(working_directory)
 	logging.info('Created local cluster description file: \033[34m' + working_directory + '/pipeline.clusterdesc')

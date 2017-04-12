@@ -6,7 +6,7 @@
 
 ### Steps to run
 # pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedbcal,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,lintocirc,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock]
-pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,beamcal,lintocirc,smooth,sourcedb,listsourcedbcal,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock]
+pipeline.steps = [listcal,listtemp,flagcal,listclock,listFR,listcolumn,listinst,parmdbclock,parmdbFR,fixFR,sourcedb,listsourcedbcal,predictcal,beamcal,lintocirc,smooth,smoothcal,makevds,findvds,globaldb,globaldbFR,globaldbampclock,h5parmFR,losotoFR,h5parmexpFR,listsolFR,match_files_calFR,beamcal,applyFR,smooth,smoothcal,globaldbCD,h5parmCD,losotoCD,h5parmexpCD,listsolCD,match_files_calCD,beamcal,applyCD,applyFR,smooth,smoothcal,globaldb2,h5parm2,losotoflag,losotoampclock,h5parmexpampclock]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -139,7 +139,43 @@ fixFR.control.executable                                     =   {{ scripts }}/f
 fixFR.control.error_tolerance                                =   {{ error_tolerance }}
 fixFR.argument.flags                                         =   [listFR.output.mapfile]
 
-### Step: 05
+### Step: 05a
+### --- Create skymodel for calibrator
+sourcedb.control.type                                        =   setupsourcedb
+sourcedb.control.cmdline.mapfile                             =   listtemp.output.mapfile
+sourcedb.control.skymodel                                    =   {{ skymodels }}/{{ calibrator }}.skymodel
+
+### Step: 05b
+### --- Expand skymodel mapfile to the amount of calibrator files
+listsourcedbcal.control.kind                                 =   plugin
+listsourcedbcal.control.type                                 =   expandMapfile
+listsourcedbcal.control.mapfile_in                           =   sourcedb.output.mapfile
+listsourcedbcal.control.mapfile_ref                          =   flagcal.output.mapfile
+listsourcedbcal.control.mapfile_dir                          =   input.output.mapfile_dir
+listsourcedbcal.control.filename                             =   listsourcedbcal.mapfile
+
+### Step: 06
+### --- Predict calibrator model
+predictcal.control.type                                      =   dppp
+predictcal.control.inplace                                   =   True
+predictcal.control.max_per_node                              =   {{ max_per_node_limit }}
+predictcal.control.error_tolerance                           =   {{ error_tolerance }}
+predictcal.argument.numthreads                               =   {{ max_dppp_threads }}
+predictcal.control.mapfiles_in                               =   [flagcal.output.mapfile,listsourcedbcal.output.mapfile]
+predictcal.control.inputkeys                                 =   [infiles,sourcedb]
+predictcal.argument.msin                                     =   infiles
+predictcal.argument.msin.datacolumn                          =   DATA
+predictcal.argument.msin.baseline                            =   [CR]S*&
+predictcal.argument.msout.datacolumn                         =   MODEL_DATA
+predictcal.argument.steps                                    =   [predict]
+predictcal.argument.predict.type                             =   predict
+predictcal.argument.predict.sourcedb                         =   sourcedb
+predictcal.argument.predict.sources                          =   []
+predictcal.argument.predict.usebeammodel                     =   True
+predictcal.argument.predict.usechannelfreq                   =   False
+predictcal.argument.predict.beammode                         =   array_factor
+
+### Step: 07
 ### --- Beam correction
 beamcal.control.type                                         =   dppp
 beamcal.control.inplace                                      =   True
@@ -154,7 +190,7 @@ beamcal.argument.applybeam.type                              =   applybeam
 beamcal.argument.applybeam.invert                            =   True
 beamcal.argument.applybeam.usechannelfreq                    =   False
 
-### Step: 06
+### Step: 08
 ### --- Convert to circular
 lintocirc.control.type                                       =   executable_args
 lintocirc.control.max_per_node                               =   {{ max_per_node_limit }}
@@ -162,35 +198,20 @@ lintocirc.control.error_tolerance                            =   {{ error_tolera
 lintocirc.control.executable                                 =   {{ scripts }}/mslin2circ.py
 lintocirc.argument.flags                                     =   [-w,-i,listcolumn.output.mapfile,-o,listcolumn.output.mapfile]
 
-### Step: 07
+### Step: 09
 ### --- Smooth the data (baseline-based)
 smooth.control.type                                          =   executable_args
 smooth.control.error_tolerance                               =   {{ error_tolerance }}
 smooth.control.executable                                    =   {{ scripts }}/BLsmooth.py
 smooth.argument.flags                                        =   [-r,-i,CORRECTED_DATA,-o,SMOOTHED_DATA,flagcal.output.mapfile]
 
-### Step: 08a
-### --- Create skymodel for calibrator
-sourcedb.control.type                                        =   setupsourcedb
-sourcedb.control.cmdline.mapfile                             =   listtemp.output.mapfile
-sourcedb.control.skymodel                                    =   {{ skymodels }}/{{ calibrator }}.skymodel
-
-### Step: 08b
-### --- Expand skymodel mapfile to the amount of calibrator files
-listsourcedbcal.control.kind                                 =   plugin
-listsourcedbcal.control.type                                 =   expandMapfile
-listsourcedbcal.control.mapfile_in                           =   sourcedb.output.mapfile
-listsourcedbcal.control.mapfile_ref                          =   flagcal.output.mapfile
-listsourcedbcal.control.mapfile_dir                          =   input.output.mapfile_dir
-listsourcedbcal.control.filename                             =   listsourcedbcal.mapfile
-
-### Step: 09
+### Step: 10
 ### --- Calibrate smoothed data
 smoothcal.control.type                                       =   dppp
 smoothcal.control.inplace                                    =   True
 smoothcal.control.error_tolerance                            =   {{ error_tolerance }}
-smoothcal.control.mapfiles_in                                =   [flagcal.output.mapfile,listinst.output.mapfile,listsourcedbcal.output.mapfile]
-smoothcal.control.inputkeys                                  =   [infiles,parmdbs,sourcedb]
+smoothcal.control.mapfiles_in                                =   [flagcal.output.mapfile,listinst.output.mapfile]
+smoothcal.control.inputkeys                                  =   [infiles,parmdbs]
 smoothcal.argument.numthreads                                =   {{ max_dppp_threads }}
 smoothcal.argument.msin                                      =   infiles
 smoothcal.argument.msin.datacolumn                           =   SMOOTHED_DATA
@@ -202,22 +223,18 @@ smoothcal.argument.gaincal.type                              =   gaincal
 smoothcal.argument.gaincal.parmdb                            =   parmdbs
 smoothcal.argument.gaincal.caltype                           =   diagonal
 smoothcal.argument.gaincal.maxiter                           =   500
-smoothcal.argument.gaincal.sourcedb                          =   sourcedb
-smoothcal.argument.gaincal.sources                           =   []
-smoothcal.argument.gaincal.usebeammodel                      =   True
-smoothcal.argument.gaincal.usechannelfreq                    =   False
-smoothcal.argument.gaincal.beammode                          =   array_factor
 smoothcal.argument.gaincal.nchan                             =   1
 smoothcal.argument.gaincal.solint                            =   1
 smoothcal.argument.gaincal.propagatesolutions                =   False
+smoothcal.argument.gaincal.usemodelcolumn                    =   True
 
-### Step: 10
+### Step: 11a
 ### --- Creating VDS files
 makevds.control.type                                         =   vdsmaker
 makevds.control.cmdline.inmap                                =   flagcal.output.mapfile
 makevds.control.unlink                                       =   True
 
-### Step: 11
+### Step: 11b
 ### --- Creating mapfile for the VDS files
 findvds.control.kind                                         =   plugin
 findvds.control.type                                         =   createMapfile
