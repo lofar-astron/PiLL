@@ -21,7 +21,7 @@ def main(options):
     
     t = pt.table(ms, readonly=False, ack=False)
 
-    for col in cols.split(','):
+    for col in cols.split(';'):
         if col not in t.colnames():
             logging.info('Adding the output column '+col+' to '+ms+'.')
             if incol == '':

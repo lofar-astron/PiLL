@@ -60,7 +60,7 @@ flagtar.argument.flagelevation.type                          =   preflagger
 flagtar.argument.flagelevation.elevation                     =   0deg..30deg
 flagtar.argument.flag.type                                   =   aoflagger
 flagtar.argument.flag.keepstatistics                         =   True
-flagtar.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
+flagtar.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ rfistrategy }} ## better strategy for averaged data (also for LBA)
 flagtar.argument.avg.type                                    =   averager
 flagtar.argument.avg.freqstep                                =   {{ average_freqstep }}
 flagtar.argument.avg.timestep                                =   {{ average_timestep }}
@@ -156,10 +156,11 @@ concat.argument.msin.datacolumn                              =   CORRECTED_DATA
 concat.argument.msin.missingdata                             =   True
 concat.argument.msin.orderms                                 =   False
 concat.argument.msout.writefullresflag                       =   False
+concat.argument.msout.overwrite                              =   True
 concat.argument.steps                                        =   [flag, count]
 concat.argument.flag.type                                    =   aoflagger
 concat.argument.flag.keepstatistics                          =   True
-concat.argument.flag.strategy                                =   {{ lofar_directory }}/share/rfistrategies/{{ antennae }}default ## better strategy for averaged data (also for LBA)
+concat.argument.flag.strategy                                =   {{ lofar_directory }}/share/rfistrategies/{{ rfistrategy }} ## better strategy for averaged data (also for LBA)
 
 ### Step: 08a
 ### --- Split MS by time

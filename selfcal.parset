@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps to run
-pipeline.steps = [listsplit,listtemp2,addcol,sky_tar,sourcedbtar,listsourcedbtar,predicttar]
+pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losototec,applytec,image]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -18,9 +18,18 @@ listsplit.control.method                                     =   mapfile_from_fo
 listsplit.control.folder                                     =   {{ job_directory }}        # directory in which to look for the data
 listsplit.control.mapfile_dir                                =   input.output.mapfile_dir   # put the mapfile into the runtime directory
 listsplit.control.filename                                   =   listsplit.mapfile          # name of the generated mapfile
-listsplit.control.pattern                                    =   *.split                    # use only files that match this pattern
+listsplit.control.pattern                                    =   *.time_split-split         # use only files that match this pattern
 
 ### Step: 00b
+### --- Map splitted files all to one
+listsplit2.control.kind                                      =   plugin
+listsplit2.control.type                                      =   createMapfile
+listsplit2.control.method                                    =   mapfile_all_to_one
+listsplit2.control.mapfile_dir                               =   input.output.mapfile_dir
+listsplit2.control.filename                                  =   listsplit2.mapfile
+listsplit2.control.mapfile_in                                =   listsplit.output.mapfile
+
+### Step: 00c
 ### --- List of the single calibrator MS which is used as a template for making a skymodel
 listtemp2.control.kind                                       =   plugin                     # plugin -> short, non-parallel step
 listtemp2.control.type                                       =   createMapfile              # generate a new mapfile
@@ -30,12 +39,28 @@ listtemp2.control.mapfile_dir                                =   input.output.ma
 listtemp2.control.filename                                   =   listtemp2.mapfile           # name of the generated mapfile
 listtemp2.control.pattern                                    =   {{ target_template }}      # use only files that match this pattern
 
+### Step: 00d
+### --- Update mapfile for calibrator FR tables
+listFRtar.control.kind                                       =   plugin
+listFRtar.control.type                                       =   changeMapfile
+listFRtar.control.mapfile_in                                 =   listsplit.output.mapfile
+listFRtar.control.join_files                                 =   instrument-fr
+listFRtar.control.newname                                    =   listFRtar.mapfile
+
+### Step: 00e
+### --- Update mapfile for calibrator FR tables
+listtec.control.kind                                         =   plugin
+listtec.control.type                                         =   changeMapfile
+listtec.control.mapfile_in                                   =   listsplit.output.mapfile
+listtec.control.join_files                                   =   instrument-tec
+listtec.control.newname                                      =   listtec.mapfile
+
 ### Step: 01
 ### --- Adding MODEL columns
 addcol.control.type                                          =   executable_args
 addcol.control.max_per_node                                  =   {{ max_per_node_limit }}
 addcol.control.executable                                    =   {{ scripts }}/addcol2ms.py
-addcol.argument.flags                                        =   [-m,listsplit.output.mapfile,outputkey,-c,MODEL_DATA_HIGHRES]
+addcol.argument.flags                                        =   [-m,listsplit.output.mapfile,outputkey,-c,MODEL_DATA_HIGHRES;SUBTRACTED_DATA]
 
 ### Step: 02
 # Download the TGSS ADR skymodel for the target
@@ -54,12 +79,12 @@ sourcedbtar.control.skymodel                                 =   {{ job_director
 
 ### Step: 03b
 ### --- Expand skymodel mapfile to the amount of target files
-listsourcedbtar.control.kind                                 =   plugin
-listsourcedbtar.control.type                                 =   expandMapfile
-listsourcedbtar.control.mapfile_in                           =   sourcedbtar.output.mapfile
-listsourcedbtar.control.mapfile_ref                          =   listsplit.output.mapfile
-listsourcedbtar.control.mapfile_dir                          =   input.output.mapfile_dir
-listsourcedbtar.control.filename                             =   listsourcedbtar.mapfile
+listsourcedbtar2.control.kind                                =   plugin
+listsourcedbtar2.control.type                                =   expandMapfile
+listsourcedbtar2.control.mapfile_in                          =   sourcedbtar.output.mapfile
+listsourcedbtar2.control.mapfile_ref                         =   listsplit.output.mapfile
+listsourcedbtar2.control.mapfile_dir                         =   input.output.mapfile_dir
+listsourcedbtar2.control.filename                            =   listsourcedbtar.mapfile
 
 ### Step: 04
 ### --- Add target model to MODEL_DATA
@@ -74,13 +99,193 @@ predicttar.argument.msin.datacolumn                          =   DATA
 predicttar.argument.msout.datacolumn                         =   MODEL_DATA
 predicttar.argument.steps                                    =   [predict]
 predicttar.argument.predict.type                             =   predict
-predicttar.argument.predict.sourcedb                         =   listsourcedbtar.output.mapfile
+predicttar.argument.predict.sourcedb                         =   listsourcedbtar2.output.mapfile
 predicttar.argument.predict.usebeammodel                     =   True
 predicttar.argument.predict.usechannelfreq                   =   True
 predicttar.argument.predict.beammode                         =   array_factor
+
+### Step: 05
+### --- Creation of fake-parmdbs (Faraday Rotation)
+parmdbFRtar.control.type                                     =   python-calibrate-stand-alone
+parmdbFRtar.control.error_tolerance                          =   {{ error_tolerance }}
+parmdbFRtar.argument.force                                   =   True                                       # force replaceing of parmDB and skyDB
+parmdbFRtar.argument.observation                             =   listsplit.output.mapfile                     # run on files generated by flag_compress step
+parmdbFRtar.argument.parmdb-name                             =   instrument-fr
+parmdbFRtar.argument.catalog                                 =   {{ skymodels }}/{{ calibrator }}.skymodel  # which skymodel to use
+parmdbFRtar.argument.numthreads                              =   {{ max_per_node }}
+parmdbFRtar.argument.Strategy.ChunkSize                      =   30
+parmdbFRtar.argument.Strategy.Steps                          =   [solve]
+parmdbFRtar.argument.Step.solve.Operation                    =   SOLVE
+parmdbFRtar.argument.Step.solve.Model.Sources                =   [@MODEL_DATA]
+parmdbFRtar.argument.Step.solve.Model.Cache.Enable           =   T
+parmdbFRtar.argument.Step.solve.Model.FaradayRotation.Enable =   T
+parmdbFRtar.argument.Step.solve.Solve.Parms                  =   ["RotationMeasure:*"]
+parmdbFRtar.argument.Step.solve.Solve.CellChunkSize          =   30
+parmdbFRtar.argument.Step.solve.Solve.PropagateSolutions     =   F
+parmdbFRtar.argument.Step.solve.Solve.CellSize.Freq          =   0
+parmdbFRtar.argument.Step.solve.Solve.CellSize.Time          =   30
+parmdbFRtar.argument.Step.solve.Solve.Options.MaxIter        =   1
+
+### Step: 06
+### --- Fix entries in the NAMES subtable
+fixFRtar.control.type                                        =   executable_args
+fixFRtar.control.executable                                  =   {{ scripts }}/fixFR.bash
+fixFRtar.control.error_tolerance                             =   {{ error_tolerance }}
+fixFRtar.argument.flags                                      =   [listFRtar.output.mapfile]
+
+### Step: 07
+### --- Smooth the data (baseline-based)
+smoothtar.control.type                                       =   executable_args
+smoothtar.control.error_tolerance                            =   {{ error_tolerance }}
+smoothtar.control.executable                                 =   {{ scripts }}/BLsmooth.py
+smoothtar.argument.flags                                     =   [-r,-f,0.2,-i,DATA,-o,SMOOTHED_DATA,listsplit.output.mapfile]
+
+### Step: 08
+### --- Calibrate smoothed data
+teccal.control.type                                          =   dppp
+teccal.control.inplace                                       =   True
+teccal.control.error_tolerance                               =   {{ error_tolerance }}
+teccal.control.mapfiles_in                                   =   [listsplit.output.mapfile,listtec.output.mapfile]
+teccal.control.inputkeys                                     =   [infiles,parmdbs]
+teccal.argument.numthreads                                   =   {{ max_dppp_threads }}
+teccal.argument.msin                                         =   infiles
+teccal.argument.msin.datacolumn                              =   SMOOTHED_DATA
+teccal.argument.msin.baseline                                =   [CR]S*&
+teccal.argument.msout.datacolumn                             =   CORRECTED_DATA
+teccal.argument.steps                                        =   [filter,gaincal]
+teccal.argument.filter.blrange                               =   [1500,1e30]
+teccal.argument.gaincal.type                                 =   gaincal
+teccal.argument.gaincal.parmdb                               =   parmdbs
+teccal.argument.gaincal.caltype                              =   tecandphase
+teccal.argument.gaincal.maxiter                              =   500
+teccal.argument.gaincal.nchan                                =   1
+teccal.argument.gaincal.solint                               =   1
+teccal.argument.gaincal.propagatesolutions                   =   False
+teccal.argument.gaincal.usemodelcolumn                       =   True
+
+### Step: 09a
+### --- Creating VDS files
+makevdstar.control.type                                      =   vdsmaker
+makevdstar.control.cmdline.inmap                             =   listsplit.output.mapfile
+makevdstar.control.unlink                                    =   True
+
+### Step: 09b
+### --- Creating mapfile for the VDS files
+findvds.control.kind                                         =   plugin
+findvds.control.type                                         =   createMapfile
+findvds.control.method                                       =   mapfile_from_folder
+findvds.control.folder                                       =   {{ job_directory }}/vds
+findvds.control.mapfile_dir                                  =   input.output.mapfile_dir
+findvds.control.filename                                     =   findvds.mapfile
+
+### Step: 09c
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbtec.control.type                                     =   executable_args
+globaldbtec.control.executable                               =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbtec.argument.flags                                   =   [-v,-d,findvds.output.mapfile,-p,instrument-tec,-g,outputkey]
+
+### Step: 09d
+### --- Import globaldb to h5parm
+h5parmtec.control.type                                       =   executable_args
+h5parmtec.control.executable                                 =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmtec.argument.flags                                     =   [-v,outputkey,globaldbtec.output.mapfile]
+
+### Step: 09c
+### --- Running losoto to plot, flag and do the Farady Rotation extraction
+losototec.control.type                                       =   executable_args
+losototec.control.executable                                 =   {{ losoto_directory }}/bin/losoto
+losototec.control.parsetasfile                               =   True
+losototec.control.args_format                                =   losoto
+losototec.argument.flags                                     =   [-v,h5parmtec.output.mapfile]
+losototec.argument.LoSoTo.Steps                              =   [plotTEC, plotCSP, plotCSPTEC]
+losototec.argument.LoSoTo.Solset                             =   [sol000]
+losototec.argument.LoSoTo.Soltab                             =   []
+losototec.argument.LoSoTo.SolType                            =   []
+losototec.argument.LoSoTo.ant                                =   []
+losototec.argument.LoSoTo.pol                                =   [XX, YY]
+losototec.argument.LoSoTo.dir                                =   []
+losototec.argument.LoSoTo.Ncpu                               =   {{ max_per_node }}
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Operation         =   PLOT
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Soltab            =   [sol000/scalarphase000]
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Axes              =   time
+losototec.argument.LoSoTo.Steps.plotCSPTEC.TableAxis         =   ant
+losototec.argument.LoSoTo.Steps.plotCSPTEC.PlotFlag          =   True
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Prefix            =   plots-tec/csptec_
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Reference         =   'CS001LBA'
+losototec.argument.LoSoTo.Steps.plotCSPTEC.Add               =   [sol000/tec000]
+losototec.argument.LoSoTo.Steps.plotCSP.Operation            =   PLOT
+losototec.argument.LoSoTo.Steps.plotCSP.Soltab               =   [sol000/scalarphase000]
+losototec.argument.LoSoTo.Steps.plotCSP.Axes                 =   time
+losototec.argument.LoSoTo.Steps.plotCSP.TableAxis            =   ant
+losototec.argument.LoSoTo.Steps.plotCSP.PlotFlag             =   True
+losototec.argument.LoSoTo.Steps.plotCSP.Prefix               =   plots-tec/csp_
+losototec.argument.LoSoTo.Steps.plotCSP.Reference            =   'CS001LBA'
+losototec.argument.LoSoTo.Steps.plotTEC.Operation            =   PLOT
+losototec.argument.LoSoTo.Steps.plotTEC.Soltab               =   [sol000/tec000]
+losototec.argument.LoSoTo.Steps.plotTEC.Axes                 =   time
+losototec.argument.LoSoTo.Steps.plotTEC.TableAxis            =   ant
+losototec.argument.LoSoTo.Steps.plotTEC.PlotFlag             =   True
+losototec.argument.LoSoTo.Steps.plotTEC.MinMax               =   [-0.5,0.5]
+losototec.argument.LoSoTo.Steps.plotTEC.Prefix               =   plots-tec/tec_
+losototec.argument.LoSoTo.Steps.plotTEC.Reference            =  'CS001LBA'
+
+### Step: 10
+### --- Apply TEC and common scalar phase 
+applytec.control.type                                        =   dppp
+applytec.control.inplace                                     =   True
+applytec.control.error_tolerance                             =   {{ error_tolerance }}
+applytec.control.max_per_node                                =   {{ max_per_node_limit }}
+applytec.control.mapfiles_in                                 =   [listsplit.output.mapfile,listtec.output.mapfile]
+applytec.control.inputkeys                                   =   [infiles,parmdbs]
+applytec.argument.numthreads                                 =   {{ max_dppp_threads }}
+applytec.argument.msin                                       =   infiles
+applytec.argument.msin.datacolumn                            =   DATA
+applytec.argument.msout.datacolumn                           =   CORRECTED_DATA
+applytec.argument.steps                                      =   [correcttec,correctphase]
+applytec.argument.correcttec.type                            =   applycal
+applytec.argument.correcttec.parmdb                          =   parmdbs
+applytec.argument.correcttec.correction                      =   tec
+applytec.argument.correctphase.type                          =   applycal
+applytec.argument.correctphase.parmdb                        =   parmdbs
+applytec.argument.correctphase.correction                    =   commonscalarphase
+
+### Step: 11
+# First high-res imaging
+image.control.kind                                           =   recipe
+image.control.type                                           =   executable_args
+image.control.executable                                     =   {{ lofar_directory }}/bin/wsclean
+image.control.outputsuffixes                                 =   [-image.fits,-model.fits]
+image.control.outputkey                                      =   name
+image.control.args_format                                    =   wsclean
+image.control.max_per_node                                   =   1
+image.control.error_tolerance                                =   {{ error_tolerance }}
+image.control.mapfiles_in                                    =   [listsplit2.output.mapfile]
+image.control.inputkeys                                      =   [infiles]
+image.argument.flags                                         =   [-reorder,-no-update-model-required,-joinchannels,infiles]
+image.argument.size                                          =   3500 3000
+image.argument.trim                                          =   2500 2500
+image.argument.mem                                           =   90
+image.argument.j                                             =   {{ max_per_node }}
+image.argument.baseline-averaging                            =   2.0
+image.argument.scale                                         =   10arcsec
+image.argument.weight                                        =   briggs 0.0
+image.argument.auto-threshold                                =   20
+image.argument.niter                                         =   100000
+image.argument.maxuv-l                                       =   5000
+image.argument.mgain                                         =   0.9
+image.argument.pol                                           =   I
+image.argument.fit-spectral-pol                              =   2
+image.argument.channelsout                                   =   10
 
 ################################################################################################################################################################################################################################################################
 ##                                                                                                                                                                                                                                                            ##
 ##                                                                                                    End of selfcal pipeline                                                                                                                                 ##
 ##                                                                                                                                                                                                                                                            ##
 ################################################################################################################################################################################################################################################################
+
+# ### Step: 06
+# ### --- Virtually concatenate the data
+# virtconcat.control.type                                      =   pythonplugin
+# virtconcat.control.error_tolerance                           =   {{ error_tolerance }}
+# virtconcat.control.executable                                =   {{ scripts }}/msconcat.py
+# virtconcat.argument.flags                                    =   [listsplit2.output.mapfile,outputkey]

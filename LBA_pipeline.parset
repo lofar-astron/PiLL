@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Pipelines to run
-pipeline.steps = [calibrator,time_split]
+pipeline.steps = [calibrator,time_split,selfcal]
 
 ### Parameter setup -- observational details
 !calibrator           = 3C295
@@ -44,7 +44,7 @@ pipeline.pluginpath   = {{ local_directory }}/plugins                     ## spe
 !timechunk            = 1.05                                              ## length of a time chunk for the target field in hours
 !chunks               = 239                                               ## number of subbands to concatenate
 !truncate_last_SBs    = False                                             ## This means that excess subbands that don't make a full group get discarded (time_split pipeline)
-!antennae             = HBA                                               ## we have LBA, see http://www.astron.nl/radio-observatory/observing-capabilities/depth-technical-information/system-notes/inaccurate-flaggin
+!rfistrategy          = HBAdefault                                        ## we have LBA, see http://www.astron.nl/radio-observatory/observing-capabilities/depth-technical-information/system-notes/inaccurate-flaggin
 !tables2export        = phase000;clock000                                 ## choose tables to export (use phaseOrig000 if you want to export the full phase solutions)
 !tables2apply         = correctamp,correctclock                           ## choose which tables to apply (use correctamp only if you have exported phaseOrig000 above)
 !error_tolerance      = False                                             ## set this to True if you want the pipeline run to continue if single bands fail
@@ -72,7 +72,7 @@ calibrator.argument.max_dppp_threads         =   {{ max_dppp_threads }}
 calibrator.argument.max_per_node_limit       =   {{ max_per_node_limit }}
 calibrator.argument.avg_timestep             =   {{ avg_timestep }}
 calibrator.argument.avg_freqstep             =   {{ avg_freqstep }}
-calibrator.argument.antennae                 =   {{ antennae }}
+calibrator.argument.rfistrategy              =   {{ rfistrategy }}
 calibrator.argument.tables2export            =   {{ tables2export }}
 calibrator.argument.error_tolerance          =   {{ error_tolerance }}
 calibrator.argument.job_name                 =   {{ job_name }}
@@ -95,7 +95,7 @@ time_split.argument.avg_freqstep             =   {{ avg_freqstep }}
 time_split.argument.timechunk                =   {{ timechunk }}
 time_split.argument.chunks                   =   {{ chunks }}
 time_split.argument.truncate_last_SBs        =   {{ truncate_last_SBs }}
-time_split.argument.antennae                 =   {{ antennae }}
+time_split.argument.rfistrategy              =   {{ rfistrategy }}
 time_split.argument.tables2apply             =   {{ tables2apply }}
 time_split.argument.error_tolerance          =   {{ error_tolerance }}
 time_split.argument.job_name                 =   {{ job_name }}
@@ -106,6 +106,8 @@ selfcal.control.kind                         =   pipeline
 selfcal.control.type                         =   {{ local_directory }}/selfcal.parset
 selfcal.argument.target                      =   {{ target }}
 selfcal.argument.job_directory               =   {{ job_directory }}
+selfcal.argument.lofar_directory             =   {{ lofar_directory }}
+selfcal.argument.losoto_directory            =   {{ losoto_directory }}
 selfcal.argument.target_directory            =   {{ target_directory }}
 selfcal.argument.scripts                     =   {{ scripts }}
 selfcal.argument.target_template             =   {{ target_template }}
