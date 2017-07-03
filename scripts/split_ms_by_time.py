@@ -34,8 +34,8 @@ t = pt.table(tablename)
 starttime = t[0]['TIME']
 endtime   = t[t.nrows()-1]['TIME']
 chunks    = int((endtime-starttime)/(3600. * chunksize))
+chunks    = 1 if chunks < 1 else chunks
 zeros     = int(math.log10(chunks)) + 1
-
 
 print '====================='
 

@@ -1,11 +1,11 @@
 ################################################################################################################################################################################################################################################################
 ##                                                                                                                                                                                                                                                            ##
-##                                                                                                    Beginning of selfcal pipeline                                                                                                                         ##
+##                                                                                                    Beginning of selfcal pipeline                                                                                                                           ##
 ##                                                                                                                                                                                                                                                            ##
 ################################################################################################################################################################################################################################################################
 
 ### Steps to run
-pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losototec,applytec,image]
+pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losototec,applytec,image_high1,createmap_high_image,mask_high,image_high2,listmodel,filter_model,make_sourcedb_target,listsourcedbtar3,predicttar_high,subtract_model,image_low,createmap_low_image,listmodel_low,mask_low,filter_model_low,make_sourcedb_target_low,listsourcedbtar4,predicttar_low,corrupt_model,subtract_model_low,restore_model]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -30,7 +30,7 @@ listsplit2.control.filename                                  =   listsplit2.mapf
 listsplit2.control.mapfile_in                                =   listsplit.output.mapfile
 
 ### Step: 00c
-### --- List of the single calibrator MS which is used as a template for making a skymodel
+### --- List of the single target MS which is used as a template for making a skymodel
 listtemp2.control.kind                                       =   plugin                     # plugin -> short, non-parallel step
 listtemp2.control.type                                       =   createMapfile              # generate a new mapfile
 listtemp2.control.method                                     =   mapfile_from_folder        # look for all files in a given directory
@@ -251,41 +251,322 @@ applytec.argument.correctphase.correction                    =   commonscalarpha
 
 ### Step: 11
 # First high-res imaging
-image.control.kind                                           =   recipe
-image.control.type                                           =   executable_args
-image.control.executable                                     =   {{ lofar_directory }}/bin/wsclean
-image.control.outputsuffixes                                 =   [-image.fits,-model.fits]
-image.control.outputkey                                      =   name
-image.control.args_format                                    =   wsclean
-image.control.max_per_node                                   =   1
-image.control.error_tolerance                                =   {{ error_tolerance }}
-image.control.mapfiles_in                                    =   [listsplit2.output.mapfile]
-image.control.inputkeys                                      =   [infiles]
-image.argument.flags                                         =   [-reorder,-no-update-model-required,-joinchannels,infiles]
-image.argument.size                                          =   3500 3000
-image.argument.trim                                          =   2500 2500
-image.argument.mem                                           =   90
-image.argument.j                                             =   {{ max_per_node }}
-image.argument.baseline-averaging                            =   2.0
-image.argument.scale                                         =   10arcsec
-image.argument.weight                                        =   briggs 0.0
-image.argument.auto-threshold                                =   20
-image.argument.niter                                         =   100000
-image.argument.maxuv-l                                       =   5000
-image.argument.mgain                                         =   0.9
-image.argument.pol                                           =   I
-image.argument.fit-spectral-pol                              =   2
-image.argument.channelsout                                   =   10
+image_high1.control.kind                                     =   recipe
+image_high1.control.type                                     =   executable_args
+image_high1.control.executable                               =   {{ lofar_directory }}/bin/wsclean
+image_high1.control.outputsuffixes                           =   [-image.fits,-model.fits]
+image_high1.control.outputkey                                =   name
+image_high1.control.args_format                              =   wsclean
+image_high1.control.max_per_node                             =   1
+image_high1.control.error_tolerance                          =   {{ error_tolerance }}
+image_high1.control.mapfiles_in                              =   [listsplit2.output.mapfile]
+image_high1.control.inputkeys                                =   [infiles]
+image_high1.argument.flags                                   =   [-reorder,-no-update-model-required,-joinchannels,infiles]
+image_high1.argument.size                                    =   3000 3000
+image_high1.argument.trim                                    =   2500 2500
+image_high1.argument.mem                                     =   90
+image_high1.argument.j                                       =   {{ max_per_node }}
+image_high1.argument.baseline-averaging                      =   2.0
+image_high1.argument.scale                                   =   12arcsec
+image_high1.argument.weight                                  =   briggs 0.0
+image_high1.argument.niter                                   =   100000
+image_high1.argument.maxuv-l                                 =   5000
+image_high1.argument.mgain                                   =   0.9
+image_high1.argument.pol                                     =   I
+image_high1.argument.fit-spectral-pol                        =   2
+image_high1.argument.channelsout                             =   10
+image_high1.argument.auto-threshold                          =   20
+image_high1.argument.minuv-l                                 =   100
+
+### Step: 12a
+# create a map with the wsclean MFS image only
+createmap_high_image.control.kind                            =   plugin
+createmap_high_image.control.type                            =   createMapfile
+createmap_high_image.control.method                          =   mapfile_from_folder
+createmap_high_image.control.mapfile_dir                     =   input.output.mapfile_dir
+createmap_high_image.control.filename                        =   createmap_high_image.mapfile
+createmap_high_image.control.folder                          =   {{ job_directory }}
+createmap_high_image.control.pattern                         =   *high1*MFS-image.fits
+
+### Step: 12b
+# make mask for the high-res image
+mask_high.control.type                                       =   pythonplugin
+mask_high.control.executable                                 =   {{ scripts }}/make_clean_mask.py
+mask_high.control.max_per_node                               =   1
+mask_high.control.error_tolerance                            =   {{ error_tolerance }}
+mask_high.control.mapfile_in                                 =   createmap_high_image.output.mapfile
+mask_high.control.inputkey                                   =   imagefile
+mask_high.control.outputkey                                  =   maskfile
+mask_high.argument.flags                                     =   [imagefile,maskfile]
+mask_high.argument.threshisl                                 =   3.0
+mask_high.argument.threshpix                                 =   7.0
+mask_high.argument.atrous_do                                 =   True
+mask_high.argument.rmsbox                                    =   (55,12)
+mask_high.argument.rmsbox_bright                             =   (30,10)
+mask_high.argument.adaptive_rmsbox                           =   True
+mask_high.argument.img_format                                =   fits
+mask_high.argument.atrous_jmax                               =   3
+
+### Step: 13
+# First high-res imaging
+image_high2.control.kind                                     =   recipe
+image_high2.control.type                                     =   executable_args
+image_high2.control.executable                               =   {{ lofar_directory }}/bin/wsclean
+image_high2.control.outputsuffixes                           =   [-image.fits,-model.fits]
+image_high2.control.outputkey                                =   name
+image_high2.control.args_format                              =   wsclean
+image_high2.control.max_per_node                             =   1
+image_high2.control.error_tolerance                          =   {{ error_tolerance }}
+image_high2.control.mapfiles_in                              =   [listsplit2.output.mapfile,mask_high.output.mapfile]
+image_high2.control.inputkeys                                =   [infiles,mask]
+image_high2.argument.flags                                   =   [-reorder,-no-update-model-required,-joinchannels,-save-source-list,infiles]
+image_high2.argument.fitsmask                                =   mask
+image_high2.argument.size                                    =   3000 3000
+image_high2.argument.trim                                    =   2500 2500
+image_high2.argument.mem                                     =   90
+image_high2.argument.j                                       =   {{ max_per_node }}
+image_high2.argument.baseline-averaging                      =   2.0
+image_high2.argument.scale                                   =   12arcsec
+image_high2.argument.weight                                  =   briggs 0.0
+image_high2.argument.niter                                   =   100000
+image_high2.argument.maxuv-l                                 =   5000
+image_high2.argument.mgain                                   =   0.8
+image_high2.argument.pol                                     =   I
+image_high2.argument.fit-spectral-pol                        =   2
+image_high2.argument.channelsout                             =   10
+image_high2.argument.auto-threshold                          =   0.1
+image_high2.argument.minuv-l                                 =   100
+
+### Step: 14a
+# create a map with the wsclean MFS image model only
+listmodel.control.kind                                       =   plugin
+listmodel.control.type                                       =   createMapfile              # generate a new mapfile
+listmodel.control.method                                     =   mapfile_from_folder        # look for all files in a given directory
+listmodel.control.folder                                     =   {{ job_directory }}        # directory in which to look for the data
+listmodel.control.mapfile_dir                                =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listmodel.control.filename                                   =   listmodel.mapfile
+listmodel.control.pattern                                    =   *image_high2-sources.txt
+
+### Step: 14b
+# filter CC model
+filter_model.control.type                                    =   pythonplugin
+filter_model.control.executable                              =   {{ scripts }}/filter_model.py
+filter_model.control.max_per_node                            =   1
+filter_model.control.error_tolerance                         =   {{ error_tolerance }}
+filter_model.control.mapfiles_in                             =   [listtemp2.output.mapfile,listmodel.output.mapfile,mask_high.output.mapfile]
+filter_model.control.inputkeys                               =   [msfiles,inmodel,inmask]#,mask_high.output.mapfile,createmap_high_model.output.mapfile]
+filter_model.argument.ms                                     =   msfiles
+filter_model.argument.skymodel                               =   inmodel
+filter_model.argument.maskname                               =   inmask
+filter_model.argument.skymodel_cut                           =   outputkey
+
+### Step: 15a
+### --- Create skymodel for calibrator
+make_sourcedb_target.control.kind                            =   recipe
+make_sourcedb_target.control.type                            =   executable_args
+make_sourcedb_target.control.executable                      =   {{ lofar_directory }}/bin/makesourcedb
+make_sourcedb_target.control.error_tolerance                 =   {{ error_tolerance }}
+make_sourcedb_target.control.args_format                     =   lofar
+make_sourcedb_target.control.outputkey                       =   out
+make_sourcedb_target.control.mapfile_in                      =   filter_model.output.mapfile
+make_sourcedb_target.control.inputkey                        =   in
+make_sourcedb_target.argument.format                         =   <
+make_sourcedb_target.argument.outtype                        =   blob
+
+### Step: 15b
+### --- Expand skymodel mapfile to the amount of target files
+listsourcedbtar3.control.kind                                =   plugin
+listsourcedbtar3.control.type                                =   expandMapfile
+listsourcedbtar3.control.mapfile_in                          =   make_sourcedb_target.output.mapfile
+listsourcedbtar3.control.mapfile_ref                         =   listsplit.output.mapfile
+listsourcedbtar3.control.mapfile_dir                         =   input.output.mapfile_dir
+listsourcedbtar3.control.filename                            =   listsourcedbtar3.mapfile
+
+### Step: 16
+### --- Add selfcal-target model to MODEL_DATA
+predicttar_high.control.type                                 =   dppp
+predicttar_high.control.inplace                              =   True
+predicttar_high.control.max_per_node                         =   {{ max_per_node_limit }}
+predicttar_high.control.error_tolerance                      =   {{ error_tolerance }}
+predicttar_high.argument.numthreads                          =   {{ max_dppp_threads }}
+predicttar_high.argument.msin                                =   listsplit.output.mapfile
+predicttar_high.argument.msin.baseline                       =   [CR]S*&
+predicttar_high.argument.msin.datacolumn                     =   DATA
+predicttar_high.argument.msout.datacolumn                    =   MODEL_DATA_HIGHRES
+predicttar_high.argument.steps                               =   [predict]
+predicttar_high.argument.predict.type                        =   predict
+predicttar_high.argument.predict.sourcedb                    =   listsourcedbtar3.output.mapfile
+predicttar_high.argument.predict.usebeammodel                =   False
+predicttar_high.argument.predict.usechannelfreq              =   True
+predicttar_high.argument.predict.beammode                    =   array_factor
+
+### Step: 17
+### --- Subtract model from all TCs
+subtract_model.control.type                                  =   executable_args
+subtract_model.control.executable                            =   {{ scripts }}/subtract.bash
+subtract_model.control.error_tolerance                       =   {{ error_tolerance }}
+subtract_model.argument.flags                                =   [listsplit.output.mapfile]
+
+### Step: 18
+# First low-res imaging
+image_low.control.kind                                       =   recipe
+image_low.control.type                                       =   executable_args
+image_low.control.executable                                 =   {{ lofar_directory }}/bin/wsclean
+image_low.control.outputsuffixes                             =   [-image.fits,-model.fits]
+image_low.control.outputkey                                  =   name
+image_low.control.args_format                                =   wsclean
+image_low.control.max_per_node                               =   1
+image_low.control.error_tolerance                            =   {{ error_tolerance }}
+image_low.control.mapfiles_in                                =   [listsplit2.output.mapfile]
+image_low.control.inputkeys                                  =   [infiles]
+image_low.argument.flags                                     =   [-reorder,-no-update-model-required,-joinchannels,-save-source-list,infiles]
+image_low.argument.size                                      =   4500 4500
+image_low.argument.trim                                      =   4000 4000
+image_low.argument.mem                                       =   90
+image_low.argument.j                                         =   {{ max_per_node }}
+image_low.argument.baseline-averaging                        =   2.0
+image_low.argument.scale                                     =   20arcsec
+image_low.argument.weight                                    =   briggs 0.0
+image_low.argument.niter                                     =   100000
+image_low.argument.maxuv-l                                   =   2000
+image_low.argument.mgain                                     =   0.8
+image_low.argument.pol                                       =   I
+image_low.argument.fit-spectral-pol                          =   2
+image_low.argument.channelsout                               =   10
+image_low.argument.auto-threshold                            =   1
+image_low.argument.minuv-l                                   =   100
+
+### Step: 19a
+# create a map with the wsclean MFS image only
+createmap_low_image.control.kind                             =   plugin
+createmap_low_image.control.type                             =   createMapfile
+createmap_low_image.control.method                           =   mapfile_from_folder
+createmap_low_image.control.mapfile_dir                      =   input.output.mapfile_dir
+createmap_low_image.control.filename                         =   createmap_low_image.mapfile
+createmap_low_image.control.folder                           =   {{ job_directory }}
+createmap_low_image.control.pattern                          =   *low*MFS-image.fits
+
+### Step: 19b
+# create a map with the wsclean MFS image model only
+listmodel_low.control.kind                                   =   plugin
+listmodel_low.control.type                                   =   createMapfile              # generate a new mapfile
+listmodel_low.control.method                                 =   mapfile_from_folder        # look for all files in a given directory
+listmodel_low.control.folder                                 =   {{ job_directory }}        # directory in which to look for the data
+listmodel_low.control.mapfile_dir                            =   input.output.mapfile_dir   # put the mapfile into the runtime directory
+listmodel_low.control.filename                               =   listmodel_low.mapfile
+listmodel_low.control.pattern                                =   *image_low-sources.txt
+
+### Step: 19c
+# make mask for the low-res image
+mask_low.control.type                                        =   pythonplugin
+mask_low.control.executable                                  =   {{ scripts }}/make_clean_mask.py
+mask_low.control.max_per_node                                =   1
+mask_low.control.error_tolerance                             =   {{ error_tolerance }}
+mask_low.control.mapfile_in                                  =   createmap_low_image.output.mapfile
+mask_low.control.inputkey                                    =   imagefile
+mask_low.control.outputkey                                   =   maskfile
+mask_low.argument.flags                                      =   [imagefile,maskfile]
+mask_low.argument.threshisl                                  =   5.0
+mask_low.argument.threshpix                                  =   7.0
+mask_low.argument.atrous_do                                  =   True
+mask_low.argument.rmsbox                                     =   (55,12)
+mask_low.argument.rmsbox_bright                              =   (30,10)
+mask_low.argument.adaptive_rmsbox                            =   True
+mask_low.argument.img_format                                 =   fits
+mask_low.argument.atrous_jmax                                =   3
+
+### Step: 19d
+# filter CC model
+filter_model_low.control.type                                =   pythonplugin
+filter_model_low.control.executable                          =   {{ scripts }}/filter_model.py
+filter_model_low.control.max_per_node                        =   1
+filter_model_low.control.error_tolerance                     =   {{ error_tolerance }}
+filter_model_low.control.mapfiles_in                         =   [listtemp2.output.mapfile,listmodel_low.output.mapfile,mask_low.output.mapfile]
+filter_model_low.control.inputkeys                           =   [msfiles,inmodel,inmask]#,mask_high.output.mapfile,createmap_high_model.output.mapfile]
+filter_model_low.argument.ms                                 =   msfiles
+filter_model_low.argument.skymodel                           =   inmodel
+filter_model_low.argument.maskname                           =   inmask
+filter_model_low.argument.skymodel_cut                       =   outputkey
+
+### Step: 20a
+### --- Create skymodel for calibrator
+make_sourcedb_target_low.control.kind                        =   recipe
+make_sourcedb_target_low.control.type                        =   executable_args
+make_sourcedb_target_low.control.executable                  =   {{ lofar_directory }}/bin/makesourcedb
+make_sourcedb_target_low.control.error_tolerance             =   {{ error_tolerance }}
+make_sourcedb_target_low.control.args_format                 =   lofar
+make_sourcedb_target_low.control.outputkey                   =   out
+make_sourcedb_target_low.control.mapfile_in                  =   filter_model_low.output.mapfile
+make_sourcedb_target_low.control.inputkey                    =   in
+make_sourcedb_target_low.argument.format                     =   <
+make_sourcedb_target_low.argument.outtype                    =   blob
+
+### Step: 20b
+### --- Expand skymodel mapfile to the amount of target files
+listsourcedbtar4.control.kind                                =   plugin
+listsourcedbtar4.control.type                                =   expandMapfile
+listsourcedbtar4.control.mapfile_in                          =   make_sourcedb_target_low.output.mapfile
+listsourcedbtar4.control.mapfile_ref                         =   listsplit.output.mapfile
+listsourcedbtar4.control.mapfile_dir                         =   input.output.mapfile_dir
+listsourcedbtar4.control.filename                            =   listsourcedbtar4.mapfile
+
+### Step: 21
+### --- Add selfcal-target model to MODEL_DATA
+predicttar_low.control.type                                  =   dppp
+predicttar_low.control.inplace                               =   True
+predicttar_low.control.max_per_node                          =   {{ max_per_node_limit }}
+predicttar_low.control.error_tolerance                       =   {{ error_tolerance }}
+predicttar_low.argument.numthreads                           =   {{ max_dppp_threads }}
+predicttar_low.argument.msin                                 =   listsplit.output.mapfile
+predicttar_low.argument.msin.baseline                        =   [CR]S*&
+predicttar_low.argument.msin.datacolumn                      =   DATA
+predicttar_low.argument.msout.datacolumn                     =   MODEL_DATA
+predicttar_low.argument.steps                                =   [predict]
+predicttar_low.argument.predict.type                         =   predict
+predicttar_low.argument.predict.sourcedb                     =   listsourcedbtar4.output.mapfile
+predicttar_low.argument.predict.usebeammodel                 =   False
+predicttar_low.argument.predict.usechannelfreq               =   True
+predicttar_low.argument.predict.beammode                     =   array_factor
+
+### Step: 22
+### --- corrupt model with TEC and common scalar phase solutions
+corrupt_model.control.type                                   =   dppp
+corrupt_model.control.inplace                                =   True
+corrupt_model.control.max_per_node                           =   {{ max_per_node_limit }}
+corrupt_model.control.error_tolerance                        =   {{ error_tolerance }}
+corrupt_model.control.mapfiles_in                            =   [listsplit.output.mapfile,listtec.output.mapfile]
+corrupt_model.control.inputkeys                              =   [infiles,parmdbs]
+corrupt_model.argument.numthreads                            =   {{ max_dppp_threads }}
+corrupt_model.argument.msin                                  =   infiles
+corrupt_model.argument.msin.datacolumn                       =   MODEL_DATA
+corrupt_model.argument.msout.datacolumn                      =   MODEL_DATA
+corrupt_model.argument.steps                                 =   [applytec,applyphase]
+corrupt_model.argument.applytec.type                         =   applycal
+corrupt_model.argument.applytec.parmdb                       =   parmdbs
+corrupt_model.argument.applytec.correction                   =   tec
+corrupt_model.argument.applytec.invert                       =   False
+corrupt_model.argument.applyphase.type                       =   applycal
+corrupt_model.argument.applyphase.parmdb                     =   parmdbs
+corrupt_model.argument.applyphase.correction                 =   commonscalarphase
+corrupt_model.argument.applyphase.invert                     =   False
+
+### Step: 23
+### --- Subtract low-res model
+subtract_model_low.control.type                              =   executable_args
+subtract_model_low.control.executable                        =   {{ scripts }}/subtract_low.bash
+subtract_model_low.control.error_tolerance                   =   {{ error_tolerance }}
+subtract_model_low.argument.flags                            =   [listsplit.output.mapfile]
+
+### Step: 24
+### --- Restore best model
+restore_model.control.type                                   =   executable_args
+restore_model.control.executable                             =   {{ scripts }}/restore.bash
+restore_model.control.error_tolerance                        =   {{ error_tolerance }}
+restore_model.argument.flags                                 =   [listsplit.output.mapfile]
+
 
 ################################################################################################################################################################################################################################################################
 ##                                                                                                                                                                                                                                                            ##
 ##                                                                                                    End of selfcal pipeline                                                                                                                                 ##
 ##                                                                                                                                                                                                                                                            ##
 ################################################################################################################################################################################################################################################################
-
-# ### Step: 06
-# ### --- Virtually concatenate the data
-# virtconcat.control.type                                      =   pythonplugin
-# virtconcat.control.error_tolerance                           =   {{ error_tolerance }}
-# virtconcat.control.executable                                =   {{ scripts }}/msconcat.py
-# virtconcat.argument.flags                                    =   [listsplit2.output.mapfile,outputkey]

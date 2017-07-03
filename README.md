@@ -8,6 +8,7 @@ Currently available parts of the pipeline:
 ------------------------------------------
 * calibrator
 * time_split
+* selfcal (first imaging)
 
 Installation and Usage
 ----------------------
@@ -25,5 +26,9 @@ The script `H5parm_exporter.py` has been altered in order to accept ; as separat
 
 ### Dependencies
 
-* LOFAR Software (version >= 2.19_0)
+* LOFAR Software (version >= 2.20_0)
 * [LoSoTo](https://github.com/revoltek/losoto) (version 0.5)
+* [wsclean](https://sourceforge.net/projects/wsclean) (version 2.4)
+* [PyBDSF](https://github.com/lofar-astron/PyBDSF)
+* [astropy](http://www.astropy.org/) (version >= 1.3.2)
+* [LSMTool](https://github.com/darafferty/LSMTool) (version 1.1)

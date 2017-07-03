@@ -1,12 +1,15 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""See http://www.astron.nl/citt/genericpipeline/ for further information on parsets."""
+"""
+
+See http://www.astron.nl/citt/genericpipeline/ for further information on parsets.
+"""
 
 import os, sys
 import logging
-import optparse
 import resource
+import optparse
 
 _version = '1.0'
 
@@ -94,6 +97,7 @@ def create_pipeline_config(working_directory):
 if __name__=='__main__':
 	# Get command-line options.
 	opt = optparse.OptionParser(usage='%prog <pipeline.parset> <output_directory> ', version='%prog '+_version, description=__doc__)
+	opt.add_option('-c', '--clobber', help='clobber output directory', action='store_true', default=False)
 	(options, args) = opt.parse_args()
 
 	logging.root.setLevel(logging.INFO)
@@ -116,8 +120,11 @@ if __name__=='__main__':
 		sys.exit(1)
 		pass
 	working_directory = args[1].rstrip('.').rstrip('/')
+	if options.clobber:
+		print 'Yes'
+		pass
 	logging.info('Checking working directory: \033[34m' + working_directory)
-	if os.path.isdir(working_directory):
+	if os.path.isdir(working_directory) and not options.clobber:
 		prompt = "\033[1;35mWARNING\033[0m: Output directory already exists. Press enter to clobber or 'q' to quit : "
 		answer = raw_input(prompt)
 		while answer != '':
