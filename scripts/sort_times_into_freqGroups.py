@@ -204,8 +204,8 @@ def main(ms_input, filename=None, mapfile_dir=None, numSB=-1, hosts=None, NDPPPf
     freq_width = np.min(freqliste[1:]-freqliste[:-1])
     if file_bandwidth > freq_width:
         raise ValueError("Bandwidth of files is larger than minimum frequency step between two files!")
-    if file_bandwidth < (freq_width/2.):
-        raise ValueError("Bandwidth of files is smaller than half the minimum frequency step between two files! (More than half the data is missing.)")
+    if file_bandwidth < (freq_width*0.51):
+        raise ValueError("Bandwidth of files is smaller than 51% of the minimum frequency step between two files! (More than about half the data is missing.)")
     #the new output map
     filemap = MultiDataMap()
     groupmap = DataMap()
@@ -228,8 +228,13 @@ def main(ms_input, filename=None, mapfile_dir=None, numSB=-1, hosts=None, NDPPPf
     else:
         minfreq = np.min(freqliste)-freq_width/2.
     groupBW = freq_width*numSB
-    if groupBW < 1e6:
+    if groupBW < 1e6 and groupBW > 0:
         print 'sort_times_into_freqGroups: ***WARNING***: Bandwidth of concatenated MS is lower than 1 MHz. This may cause conflicts with the concatenated file names!'
+    if groupBW < 0:
+	# this is the case for concatenating all subbands
+	groupBW = maxfreq-minfreq
+	truncateLastSBs = input2bool(False)
+	NDPPPfill = input2bool(True)
     freqborders = np.arange(minfreq,maxfreq,groupBW)
     if mergeLastGroup:
         freqborders[-1] = maxfreq
