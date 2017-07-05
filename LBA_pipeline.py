@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-
 See http://www.astron.nl/citt/genericpipeline/ for further information on parsets.
 """
 
@@ -120,9 +119,6 @@ if __name__=='__main__':
 		sys.exit(1)
 		pass
 	working_directory = args[1].rstrip('.').rstrip('/')
-	if options.clobber:
-		print 'Yes'
-		pass
 	logging.info('Checking working directory: \033[34m' + working_directory)
 	if os.path.isdir(working_directory) and not options.clobber:
 		prompt = "\033[1;35mWARNING\033[0m: Output directory already exists. Press enter to clobber or 'q' to quit : "
