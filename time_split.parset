@@ -122,10 +122,10 @@ applysol.argument.correctamp.updateweights                   =   True # correct 
 applysol.argument.correctclock.type                          =   correct
 applysol.argument.correctclock.parmdb                        =   parmdbs
 applysol.argument.correctclock.correction                    =   clock
-applysol.argument.corrbeam.type                              =   applybeam
-applysol.argument.corrbeam.invert                            =   True
-applysol.argument.corrbeam.usechannelfreq                    =   False
-applysol.argument.corrbeam.updateweights                     =   True # add reweight
+applysol.argument.correctbeam.type                           =   applybeam
+applysol.argument.correctbeam.invert                         =   True
+applysol.argument.correctbeam.usechannelfreq                 =   False
+applysol.argument.correctbeam.updateweights                  =   True # add reweight
 
 ### Step: 05
 ### --- Concatenate target observation

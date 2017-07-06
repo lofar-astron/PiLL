@@ -421,6 +421,9 @@ losotoflag.argument.LoSoTo.Steps.plotA2.Axes                 =   [time,freq]
 losotoflag.argument.LoSoTo.Steps.plotA2.TableAxis            =   ant
 losotoflag.argument.LoSoTo.Steps.plotA2.PlotFlag             =   True
 losotoflag.argument.LoSoTo.Steps.plotA2.Prefix               =   plots-cd/ampAF_
+losotoflag.argument.LoSoTo.Steps.merge.Operation             =   REWEIGHT
+losotoflag.argument.LoSoTo.Steps.merge.Soltab                =   [sol000/phase000]
+losotoflag.argument.LoSoTo.Steps.merge.MergeFromSoltab       =   sol000/amplitude000
 
 ### Step: 16d
 ### --- Running losoto for plotting, flagging and deriving the cross delays
