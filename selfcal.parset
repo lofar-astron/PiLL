@@ -351,7 +351,6 @@ listmodel.control.pattern                                    =   *image_high2-so
 # filter CC model
 filter_model.control.type                                    =   pythonplugin
 filter_model.control.executable                              =   {{ scripts }}/filter_model.py
-filter_model.control.max_per_node                            =   1
 filter_model.control.error_tolerance                         =   {{ error_tolerance }}
 filter_model.control.mapfiles_in                             =   [listtemp2.output.mapfile,listmodel.output.mapfile,mask_high.output.mapfile]
 filter_model.control.inputkeys                               =   [msfiles,inmodel,inmask]#,mask_high.output.mapfile,createmap_high_model.output.mapfile]
@@ -359,6 +358,7 @@ filter_model.argument.ms                                     =   msfiles
 filter_model.argument.skymodel                               =   inmodel
 filter_model.argument.maskname                               =   inmask
 filter_model.argument.skymodel_cut                           =   outputkey
+filter_model.argument.scripts                                =   {{ scripts }}
 
 ### Step: 15a
 ### --- Create skymodel for calibrator

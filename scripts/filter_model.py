@@ -1,8 +1,6 @@
 #! /usr/bin/env python
 import numpy as np
-
-#from scripts.lib_pipeline import *
-from scripts.lib_pipeline import *
+import sys
     
 def main(ms,skymodel,maskname,skymodel_cut,keep_in_beam=True):
     
@@ -40,6 +38,9 @@ if __name__ == '__main__':
 
     
     args = parser.parse_args()
+    
+    sys.path.append(scripts)
+    from lib_pipeline import *
     
     main(ms=args.ms,skymodel=args.skymodel,maskname=args.mask,skymodel_cut=args.output)
     
