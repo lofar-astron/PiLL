@@ -253,7 +253,7 @@ applytec.argument.correctphase.correction                    =   commonscalarpha
 # First high-res imaging
 image_high1.control.kind                                     =   recipe
 image_high1.control.type                                     =   executable_args
-image_high1.control.executable                               =   {{ lofar_directory }}/bin/wsclean
+image_high1.control.executable                               =   {{ wsclean_directory }}/bin/wsclean
 image_high1.control.outputsuffixes                           =   [-image.fits,-model.fits]
 image_high1.control.outputkey                                =   name
 image_high1.control.args_format                              =   wsclean
@@ -311,7 +311,7 @@ mask_high.argument.atrous_jmax                               =   3
 # First high-res imaging
 image_high2.control.kind                                     =   recipe
 image_high2.control.type                                     =   executable_args
-image_high2.control.executable                               =   {{ lofar_directory }}/bin/wsclean
+image_high2.control.executable                               =   {{ wsclean_directory }}/bin/wsclean
 image_high2.control.outputsuffixes                           =   [-image.fits,-model.fits]
 image_high2.control.outputkey                                =   name
 image_high2.control.args_format                              =   wsclean
@@ -411,7 +411,7 @@ subtract_model.argument.flags                                =   [listsplit.outp
 # First low-res imaging
 image_low.control.kind                                       =   recipe
 image_low.control.type                                       =   executable_args
-image_low.control.executable                                 =   {{ lofar_directory }}/bin/wsclean
+image_low.control.executable                                 =   {{ wsclean_directory }}/bin/wsclean
 image_low.control.outputsuffixes                             =   [-image.fits,-model.fits]
 image_low.control.outputkey                                  =   name
 image_low.control.args_format                                =   wsclean

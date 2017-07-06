@@ -18,6 +18,7 @@ pipeline.steps = [calibrator,time_split,selfcal]
 !lofar_directory      = $LOFARROOT                                        ## replace it with the directory of your LOFAR software (optimized for local LOFAR installations) or use the LOFAR_pipeline.py script
 !local_directory      = $PWD                                              ## replace it with the directory where your scripts and plugins are
 !losoto_directory     = {{ lofar_directory }}                             ## replace it with the directory where you have installed LoSoTo, e.g., on CEP3
+!wsclean_directory    = {{ lofar_directory }}                             ## replace it with the directory where you have installed wsclean, e.g., on CEP3
 
 ### Parameter setup -- subdirectories
 !calibrator_directory = {{ archive }}/{{ calibrator }}                    ## specify the directory of your calibrator files
@@ -111,6 +112,7 @@ selfcal.argument.target                      =   {{ target }}
 selfcal.argument.job_directory               =   {{ job_directory }}
 selfcal.argument.lofar_directory             =   {{ lofar_directory }}
 selfcal.argument.losoto_directory            =   {{ losoto_directory }}
+selfcal.argument.wsclean_directory           =   {{ wsclean_directory }}
 selfcal.argument.target_directory            =   {{ target_directory }}
 selfcal.argument.scripts                     =   {{ scripts }}
 selfcal.argument.target_template             =   {{ target_template }}
