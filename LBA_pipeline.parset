@@ -38,6 +38,7 @@ pipeline.pluginpath   = {{ local_directory }}/plugins                     ## spe
 !max_per_node         = input.output.max_per_node                         ## this is defined in the pipeline.cfg
 !max_dppp_threads     = input.output.max_per_node                         ## max number of threads NDPPP is using
 !max_per_node_limit   = 10                                                ## number of I/O intense jobs
+!max_mem_per_img      = 90                                                ## maximal percentage of memory used for imaging with wsclean
 
 ### Parameter setup -- processing variables
 !average_timestep     = 2                                                 ## average down to 4sec
@@ -119,4 +120,5 @@ selfcal.argument.target_template             =   {{ target_template }}
 selfcal.argument.max_per_node                =   {{ max_per_node }}
 selfcal.argument.max_dppp_threads            =   {{ max_dppp_threads }}
 selfcal.argument.max_per_node_limit          =   {{ max_per_node_limit }}
+selfcal.argument.max_mem_per_img             =   {{ max_mem_per_img }}
 selfcal.argument.error_tolerance             =   {{ error_tolerance }}
