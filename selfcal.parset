@@ -120,16 +120,16 @@ parmdbFRtar.argument.Step.solve.Model.Sources                =   [@MODEL_DATA]
 parmdbFRtar.argument.Step.solve.Model.Cache.Enable           =   T
 parmdbFRtar.argument.Step.solve.Model.FaradayRotation.Enable =   T
 parmdbFRtar.argument.Step.solve.Solve.Parms                  =   ["RotationMeasure:*"]
-parmdbFRtar.argument.Step.solve.Solve.CellChunkSize          =   30
-parmdbFRtar.argument.Step.solve.Solve.PropagateSolutions     =   F
 parmdbFRtar.argument.Step.solve.Solve.CellSize.Freq          =   0
 parmdbFRtar.argument.Step.solve.Solve.CellSize.Time          =   30
+parmdbFRtar.argument.Step.solve.Solve.CellChunkSize          =   30
+parmdbFRtar.argument.Step.solve.Solve.PropagateSolutions     =   F
 parmdbFRtar.argument.Step.solve.Solve.Options.MaxIter        =   1
 
 ### Step: 06
 ### --- Fix entries in the NAMES subtable
 fixFRtar.control.type                                        =   executable_args
-fixFRtar.control.executable                                  =   {{ scripts }}/fixFR.bash
+fixFRtar.control.executable                                  =   {{ scripts }}/fixFR-self.bash
 fixFRtar.control.error_tolerance                             =   {{ error_tolerance }}
 fixFRtar.argument.flags                                      =   [listFRtar.output.mapfile]
 
