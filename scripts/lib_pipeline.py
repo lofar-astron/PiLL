@@ -2,7 +2,6 @@ import os, sys, re, pickle, random, shutil
 import numpy as np
 import matplotlib as mpl
 mpl.use("Agg")
-from lofar import bdsm
 import lsmtool
 
 import logging
@@ -46,6 +45,7 @@ def run_losoto(s, c, mss, parsets, outtab='', inglobaldb='globaldb', outglobaldb
         if inglobaldb != outglobaldb:
             if i == 0: os.system('cp -r '+ms+'/ANTENNA '+ms+'/FIELD '+ms+'/sky '+outglobaldb)
         
+        # necessary for self step
         try:
             tnum = re.findall(r't\d+', ms)[0][1:]
             sbnum = re.findall(r'SB\d+', ms)[0][2:]
@@ -343,4 +343,4 @@ class Scheduler():
 from lib_pipeline_ms import *
 from lib_pipeline_img import *
 from lib_pipeline_dd import *
-#from lib_pipeline_log import *
+from lib_pipeline_log import *

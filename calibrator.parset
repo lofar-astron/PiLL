@@ -75,7 +75,7 @@ listFR.control.newname                                       =   listFR.mapfile
 listcolumn.control.kind                                      =   plugin
 listcolumn.control.type                                      =   changeMapfile
 listcolumn.control.mapfile_in                                =   flagcal.output.mapfile
-listcolumn.control.join_files                                =   :CORRECTED_DATA
+listcolumn.control.add_name                                  =   :CORRECTED_DATA
 listcolumn.control.newname                                   =   listcolumn.mapfile
 
 ### Step: 03e
@@ -212,7 +212,7 @@ smooth.argument.flags                                        =   [-r,-i,CORRECTE
 smoothcal.control.type                                       =   dppp
 smoothcal.control.inplace                                    =   True
 smoothcal.control.error_tolerance                            =   {{ error_tolerance }}
-smoothcal.control.max_per_node                               =   {{ max_per_node }}
+smoothcal.control.max_per_node                               =   10
 smoothcal.control.mapfiles_in                                =   [flagcal.output.mapfile,listinst.output.mapfile]
 smoothcal.control.inputkeys                                  =   [infiles,parmdbs]
 smoothcal.argument.numthreads                                =   {{ max_dppp_threads }}
@@ -378,7 +378,7 @@ h5parmCD.argument.flags                                      =   [-v,outputkey,g
 listsoltableCD.control.kind                                  =   plugin
 listsoltableCD.control.type                                  =   changeMapfile
 listsoltableCD.control.mapfile_in                            =   h5parmCD.output.mapfile
-listsoltableCD.control.join_files                            =   :sol000
+listsoltableCD.control.add_name                              =   :sol000
 listsoltableCD.control.newname                               =   listsoltableCD.mapfile
 
 ### Step: 16c
@@ -662,7 +662,7 @@ h5parm2.argument.flags                                       =   [-v,outputkey,g
 listsoltable2.control.kind                                   =   plugin
 listsoltable2.control.type                                   =   changeMapfile
 listsoltable2.control.mapfile_in                             =   h5parm2.output.mapfile
-listsoltable2.control.join_files                             =   :solcd
+listsoltable2.control.add_name                               =   :solcd
 listsoltable2.control.newname                                =   listsoltable2.mapfile
 
 ### Step: 19b
