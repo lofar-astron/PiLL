@@ -2,10 +2,13 @@
 import numpy as np
 import sys
     
-def main(ms,skymodel,maskname,skymodel_cut,keep_in_beam=True):
+def main(ms,skymodel,maskname,skymodel_cut,scripts,keep_in_beam=True):
     
+    sys.path.append(scripts)
+    from lib_pipeline import *
+
     # make beam
-    phasecentre = get_phase_centre(ms)
+    phasecentre = get_phase_centre(ms[0])
     make_beam_reg(phasecentre[0], phasecentre[1], 8, 'beam.reg')
     
     # prepare mask
@@ -35,14 +38,10 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=str, nargs='+', help='Output BBS skymodel')
     parser.add_argument('-m','--mask', nargs='+', type=str, help='A mask to filter input CC model')
     parser.add_argument('-s','--skymodel', nargs='+', type=str, help='Input BBS skymodel')
+    parser.add_argument('-S','--scripts', nargs='+', type=str, help='Directory of pipeline scripts')
 
-    
     args = parser.parse_args()
-    
-    sys.path.append(scripts)
-    from lib_pipeline import *
-    
-    main(ms=args.ms,skymodel=args.skymodel,maskname=args.mask,skymodel_cut=args.output)
+
+    main(ms=args.ms,skymodel=args.skymodel,maskname=args.mask,skymodel_cut=args.output,scripts=args.scripts)
     
     pass
-      
