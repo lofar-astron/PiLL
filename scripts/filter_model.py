@@ -8,7 +8,7 @@ def main(ms,skymodel,maskname,skymodel_cut,scripts,keep_in_beam=True):
     from lib_pipeline import *
 
     # make beam
-    phasecentre = get_phase_centre(ms[0])
+    phasecentre = get_phase_centre(ms)
     make_beam_reg(phasecentre[0], phasecentre[1], 8, 'beam.reg')
     
     # prepare mask
