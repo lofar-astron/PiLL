@@ -105,11 +105,13 @@ def main(ms_input, SkymodelPath, Radius="5.", DoDownload="True"):
     assert download_flag == True # Jaja, belts and suspenders...
     print "DOWNLOADING TGSS Skymodel for the target into "+ SkymodelPath
     
+    print ms_input
+    
     # Reading a MS to find the coordinate (pyrap)
     [RATar,DECTar]=grab_coo_MS(input2strlist_nomapfile(ms_input)[0])
         
     # Downloading the skymodel
-    os.system("wget -O "+SkymodelPath+ " \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv2.cgi?coord="+str(RATar)+","+str(DECTar)+"&radius="+Radius+"&unit=deg&deconv=y\' ")
+    os.system("wget -O "+SkymodelPath+ " \'http://tgssadr.strw.leidenuniv.nl/cgi-bin/gsmv3.cgi?coord="+str(RATar)+","+str(DECTar)+"&radius="+Radius+"&unit=deg&deconv=y\' ")
 
     return
             
