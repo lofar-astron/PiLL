@@ -19,7 +19,7 @@ def main(ms,skymodel,maskname,skymodel_cut,scripts,keep_in_beam=True):
     lsm = lsmtool.load(skymodel)
     lsm.select('%s == True' % maskname)
     fluxes = lsm.getColValues('I')
-    lsm.remove(np.abs(fluxes) < 5e-4) # TEST
+    #lsm.remove(np.abs(fluxes) < 5e-4) # TEST
     lsm.write(skymodel_cut, format='makesourcedb', clobber=True)
     del lsm
     pass
