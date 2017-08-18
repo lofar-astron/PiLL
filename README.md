@@ -31,4 +31,4 @@ The script `H5parm_exporter.py` has been altered in order to accept ; as separat
 * [wsclean](https://sourceforge.net/projects/wsclean) (version 2.4)
 * [PyBDSF](https://github.com/lofar-astron/PyBDSF)
 * [astropy](http://www.astropy.org/) (version >= 1.3.2)
-* [LSMTool](https://github.com/darafferty/LSMTool) (version 1.1)
+* [LSMTool](https://github.com/darafferty/LSMTool) (version <= 1.1.0)
