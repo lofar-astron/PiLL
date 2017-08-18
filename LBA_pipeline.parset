@@ -12,47 +12,47 @@ pipeline.steps = [calibrator,time_split,selfcal]
 !target               = A2069
 
 ### Parameter setup -- main directories
-!archive              = /ola/LOFAR/LBA/A2069                              ## specify the directory of your observation (parent directory, not really needed)
-!working_directory    = input.output.working_directory                    ## replace it with the working_directory of the genericpipeline or use the LOFAR_pipeline.py script
-!job_directory        = input.output.job_directory                        ## replace it with the job_directory (typically working_directory/parset) of the genericpipeline or use the LOFAR_pipeline.py script
-!lofar_directory      = $LOFARROOT                                        ## replace it with the directory of your LOFAR software (optimized for local LOFAR installations) or use the LOFAR_pipeline.py script
-!local_directory      = $PWD                                              ## replace it with the directory where your scripts and plugins are
-!losoto_directory     = {{ lofar_directory }}                             ## replace it with the directory where you have installed LoSoTo, e.g., on CEP3
-!wsclean_directory    = {{ lofar_directory }}                             ## replace it with the directory where you have installed wsclean, e.g., on CEP3
+!archive              = /ola/LOFAR/LBA/A2069                                     ## specify the directory of your observation (parent directory, not really needed)
+!working_directory    = input.output.working_directory                           ## replace it with the working_directory of the genericpipeline or use the LOFAR_pipeline.py script
+!job_directory        = input.output.job_directory                               ## replace it with the job_directory (typically working_directory/parset) of the genericpipeline or use the LOFAR_pipeline.py script
+!lofar_directory      = $LOFARROOT                                               ## replace it with the directory of your LOFAR software (optimized for local LOFAR installations) or use the LOFAR_pipeline.py script
+!local_directory      = $PWD                                                     ## replace it with the directory where your scripts and plugins are
+!losoto_directory     = {{ lofar_directory }}                                    ## replace it with the directory where you have installed LoSoTo, e.g., on CEP3
+!wsclean_directory    = {{ lofar_directory }}                                    ## replace it with the directory where you have installed wsclean, e.g., on CEP3
 
 ### Parameter setup -- subdirectories
-!calibrator_directory = {{ archive }}/{{ calibrator }}                    ## specify the directory of your calibrator files
-!target_directory     = {{ archive }}/{{ target }}                        ## specify the directory of your calibrator files
-!skymodels            = {{ lofar_directory }}/share/pipeline/skymodels    ## specify the directory of all external skymodels (usually shipped with your LOFAR installation) or use the LOFAR_pipeline.py script
-!scripts              = {{ local_directory }}/scripts                     ## specify the directory of the pipeline scripts
-pipeline.pluginpath   = {{ local_directory }}/plugins                     ## specify the directory of the pipeline plugins
+!calibrator_directory = {{ archive }}/{{ calibrator }}                           ## specify the directory of your calibrator files
+!target_directory     = {{ archive }}/{{ target }}                               ## specify the directory of your calibrator files
+!skymodels            = {{ lofar_directory }}/share/pipeline/skymodels           ## specify the directory of all external skymodels (usually shipped with your LOFAR installation) or use the LOFAR_pipeline.py script
+!scripts              = {{ local_directory }}/scripts                            ## specify the directory of the pipeline scripts
+pipeline.pluginpath   = {{ local_directory }}/plugins                            ## specify the directory of the pipeline plugins
 
 ### Parameter setup -- data selection
-!calibrator_pattern   = L368144*_uv.dppp.MS                               ## regular expression pattern of all your calibrator files
-!calibrator_template  = L368144_SB244_uv.dppp.MS                          ## just pick a single MS of your calibrator files and put the name here
-!target_pattern       = L368146*.MS                                       ## regular expression pattern of all your target files
-!target_template      = L368146_SB000_uv.dppp.MS                          ## just pick a single MS of your calibrator files and put the name here
-!bad_stations         = ;!CS031LBA*&&*;!RS409LBA*&&*                      ## filter list of bad stations (beginn with ;! and add ;! for every other station)
+!calibrator_pattern   = L368144_SB(33[8-9]|3[4-9]?|4[0-2]?|43[0-7])_uv.dppp.MS   ## regular expression pattern of all your calibrator files
+!calibrator_template  = L368144_SB388_uv.dppp.MS                                 ## just pick a single MS of your calibrator files and put the name here
+!target_pattern       = L368146*.MS                                              ## regular expression pattern of all your target files
+!target_template      = L368146_SB000_uv.dppp.MS                                 ## just pick a single MS of your calibrator files and put the name here
+!bad_stations         = ;!CS031LBA*&&*;!RS210LBA*&&*;!RS310LBA*&&*;!RS409LBA*&&* ## filter list of bad stations (beginn with ;! and add ;! for every other station)
 
 ### Parameter setup -- computing performance
-!max_per_node         = input.output.max_per_node                         ## this is defined in the pipeline.cfg
-!max_dppp_threads     = input.output.max_per_node                         ## max number of threads NDPPP is using
-!max_per_node_limit   = 10                                                ## number of I/O intense jobs
-!max_mem_per_img      = 90                                                ## maximal percentage of memory used for imaging with wsclean
+!max_per_node         = input.output.max_per_node                                ## this is defined in the pipeline.cfg
+!max_dppp_threads     = input.output.max_per_node                                ## max number of threads NDPPP is using
+!max_per_node_limit   = 10                                                       ## number of I/O intense jobs
+!max_mem_per_img      = 90                                                       ## maximal percentage of memory used for imaging with wsclean
 
 ### Parameter setup -- processing variables
-!average_timestep     = 2                                                 ## average down to 4sec
-!average_freqstep     = 4                                                 ## average down to 4ch/SB
-!timechunk            = 1.05                                              ## length of a time chunk for the target field in hours
-!chunks               = 239                                               ## number of subbands to concatenate
-!niter                = 3                                                 ## number of target selfcal iterations
-!flag_elevation       = 0deg..20deg                                       ## range within data should be flagged
-!truncate_last_SBs    = False                                             ## This means that excess subbands that don't make a full group get discarded (time_split pipeline)
-!rfistrategy          = HBAdefault                                        ## we have LBA, see http://www.astron.nl/radio-observatory/observing-capabilities/depth-technical-information/system-notes/inaccurate-flaggin
-!tables2export        = phase000;clock000                                 ## choose tables to export (use phaseOrig000 if you want to export the full phase solutions)
-!tables2apply         = correctamp,correctclock                           ## choose which tables to apply (use correctamp only if you have exported phaseOrig000 above)
-!error_tolerance      = False                                             ## set this to True if you want the pipeline run to continue if single bands fail
-!job_name             = input.output.job_name                             ## do not change this!
+!average_timestep     = 2                                                        ## average down to 4sec
+!average_freqstep     = 4                                                        ## average down to 4ch/SB
+!timechunk            = 1.05                                                     ## length of a time chunk for the target field in hours
+!chunks               = 239                                                      ## number of subbands to concatenate
+!niter                = 3                                                        ## number of target selfcal iterations
+!flag_elevation       = 0deg..20deg                                              ## range within data should be flagged
+!truncate_last_SBs    = False                                                    ## This means that excess subbands that don't make a full group get discarded (time_split pipeline)
+!rfistrategy          = HBAdefault                                               ## we have LBA, see http://www.astron.nl/radio-observatory/observing-capabilities/depth-technical-information/system-notes/inaccurate-flaggin
+!tables2export        = phase000;clock000                                        ## choose tables to export (use phaseOrig000 if you want to export the full phase solutions)
+!tables2apply         = correctamp,correctclock                                  ## choose which tables to apply (use correctamp only if you have exported phaseOrig000 above)
+!error_tolerance      = False                                                    ## set this to True if you want the pipeline run to continue if single bands fail
+!job_name             = input.output.job_name                                    ## do not change this!
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################

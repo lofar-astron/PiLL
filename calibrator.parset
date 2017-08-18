@@ -202,7 +202,7 @@ lintocirc.argument.flags                                     =   [-i,listcolumn.
 ### Step: 09
 ### --- Smooth the data (baseline-based)
 smooth.control.type                                          =   executable_args
-smooth.control.max_per_node                                  =   {{ max_per_node_limit }}
+smooth.control.max_per_node                                  =   1
 smooth.control.error_tolerance                               =   {{ error_tolerance }}
 smooth.control.executable                                    =   {{ scripts }}/BLsmooth.py
 smooth.argument.flags                                        =   [-r,-i,CORRECTED_DATA,-o,SMOOTHED_DATA,flagcal.output.mapfile]
@@ -212,7 +212,7 @@ smooth.argument.flags                                        =   [-r,-i,CORRECTE
 smoothcal.control.type                                       =   dppp
 smoothcal.control.inplace                                    =   True
 smoothcal.control.error_tolerance                            =   {{ error_tolerance }}
-smoothcal.control.max_per_node                               =   10
+smoothcal.control.max_per_node                               =   {{ max_per_node_limit }}
 smoothcal.control.mapfiles_in                                =   [flagcal.output.mapfile,listinst.output.mapfile]
 smoothcal.control.inputkeys                                  =   [infiles,parmdbs]
 smoothcal.argument.numthreads                                =   {{ max_dppp_threads }}
@@ -529,7 +529,7 @@ losotoCD.control.executable                                  =   {{ losoto_direc
 losotoCD.control.parsetasfile                                =   True
 losotoCD.control.args_format                                 =   losoto
 losotoCD.argument.flags                                      =   [-v,h5parmCD.output.mapfile]
-losotoCD.argument.LoSoTo.Steps                               =   [duplicateBkp, plotPi, plotPi2, crossdelay, plotCD, residuals, plotPr, plotPr2, reset]
+losotoCD.argument.LoSoTo.Steps                               =   [duplicateBkp, plotPi, plotPi2, crossdelay, plotCD, residuals, plotPr, plotPr2]
 losotoCD.argument.LoSoTo.Solset                              =   [sol000]
 losotoCD.argument.LoSoTo.Soltab                              =   []
 losotoCD.argument.LoSoTo.SolType                             =   []
@@ -595,15 +595,12 @@ losotoCD.argument.LoSoTo.Steps.plotPr2.PlotFlag              =   True
 losotoCD.argument.LoSoTo.Steps.plotPr2.Prefix                =   plots-cd/ph-res_
 losotoCD.argument.LoSoTo.Steps.plotPr2.Reference             =   'CS001LBA'
 losotoCD.argument.LoSoTo.Steps.plotPr2.MinMax                =   [-3.14,3.14]
-losotoCD.argument.LoSoTo.Steps.reset.Operation               =   RESET
-losotoCD.argument.LoSoTo.Steps.reset.Soltab                  =   [sol000/crossdelay]
-losotoCD.argument.LoSoTo.Steps.reset.ant                     =   ['RS310LBA','RS210LBA','RS509LBA','RS508LBA','RS407LBA']
 
 ### Step: 16f
 ### --- Export cross-delays to globaldb2
 h5parmexpCD.control.type                                     =   executable_args
 h5parmexpCD.control.executable                               =   {{ scripts }}/H5parm_exporter.py
-h5parmexpCD.argument.flags                                   =   [-v,-c,-t,"amplitude000;crossdelay",h5parmCD.output.mapfile,globaldbCD.output.mapfile]
+h5parmexpCD.argument.flags                                   =   [-v,-c,-t,"amplitudeSmooth000;crossdelay",h5parmCD.output.mapfile,globaldbCD.output.mapfile]
 
 ### Step: 16g
 ### --- List new solution tables
@@ -813,39 +810,6 @@ losotoclock.argument.LoSoTo.Steps.plotPr3.PlotFlag           =   True
 losotoclock.argument.LoSoTo.Steps.plotPr3.Prefix             =   plots-clock/phRes_
 losotoclock.argument.LoSoTo.Steps.plotPr3.Reference          =   'CS001LBA'
 losotoclock.argument.LoSoTo.Steps.plotPr3.MinMax             =   [-3.14,3.14]
-# losotoclock.argument.LoSoTo.Steps.flag.Operation             =   FLAG
-# losotoclock.argument.LoSoTo.Steps.flag.Soltab                =   [sol000/phase000]
-# losotoclock.argument.LoSoTo.Steps.flag.Axes                  =   [time]
-# losotoclock.argument.LoSoTo.Steps.flag.MaxCycles             =   1
-# losotoclock.argument.LoSoTo.Steps.flag.MaxRms                =   5
-# losotoclock.argument.LoSoTo.Steps.flag.Order                 =   [1200]
-# losotoclock.argument.LoSoTo.Steps.flag.Replce                =   False
-# losotoclock.argument.LoSoTo.Steps.flag.PreFlagZeros          =   False
-# losotoclock.argument.LoSoTo.Steps.flag.Mode                  =   smooth
-# losotoclock.argument.LoSoTo.Steps.flag.Reference             =   'CS001LBA'
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Operation         =   PLOT
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Soltab            =   [sol000/phase000]
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.freq.minmax       =   [0,300e6,100]
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Axes              =   time
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.TableAxis         =   ant
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.ColorAxis         =   pol
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.PlotFlag          =   True
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Prefix            =   plots-clock/phResFlag_
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Reference         =   'CS001LBA'
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.MinMax            =   [-3.14,3.14]
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.Columns           =   4
-# losotoclock.argument.LoSoTo.Steps.plotPrf2.FigSize           =   [20,20]
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.Operation         =   PLOT
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.Soltab            =   [sol000/phase000]
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.Axes              =   [time,freq]
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.TableAxis         =   ant
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.PlotFlag          =   True
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.Prefix            =   plots-clock/phResFlag_
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.Reference         =   'CS001LBA'
-# losotoclock.argument.LoSoTo.Steps.plotPrf3.MinMax            =   [-3.14,3.14]
-# losotoclock.argument.LoSoTo.Steps.merge.Operation            =   REWEIGHT
-# losotoclock.argument.LoSoTo.Steps.merge.Soltab               =   [sol000/phaseOrig000]
-# losotoclock.argument.LoSoTo.Steps.merge.MergeFromSoltab      =   sol000/phase000
 losotoclock.argument.LoSoTo.Steps.resetA.Operation           =   RESET
 losotoclock.argument.LoSoTo.Steps.resetA.Soltab              =   [sol000/amplitude000]
 

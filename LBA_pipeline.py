@@ -164,7 +164,7 @@ if __name__=='__main__':
 
 	# starting of generic pipeline
 	logging.info('Calibration is starting \033[5m...')
-	os.system('genericpipeline.py ' + working_directory + '/pipeline.parset -v -d -c ' + working_directory + '/pipeline.cfg')
+	os.system('genericpipeline.py ' + working_directory + '/pipeline.parset -v -c ' + working_directory + '/pipeline.cfg')
 	
 	# calibration has been finished
 	logging.info('\033[30;4mCalibration has been finished.')
