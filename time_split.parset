@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps to run
-pipeline.steps = [listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,applysol,concat,split]
+pipeline.steps = [listsolampclock,listtar,match_files_tar,flagtar,combine_target_map,sortmap_target,do_sortmap_maps,listcolumn2,concat,split]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -15,7 +15,7 @@ pipeline.steps = [listsolampclock,listtar,match_files_tar,flagtar,combine_target
 listsolampclock.control.kind                                 =   plugin                                        # plugin -> short, non-parallel step
 listsolampclock.control.type                                 =   createMapfile                                 # generate a new mapfile
 listsolampclock.control.method                               =   mapfile_from_folder                           # look for all files in a given directory
-listsolampclock.control.folder                               =   {{ job_directory }}/{{ job_name }}.calibrator-globaldbclock # directory in which to look for the data
+listsolampclock.control.folder                               =   {{ job_directory }}/{{ job_name }}.calibrator-globaldbampclock # directory in which to look for the data
 listsolampclock.control.mapfile_dir                          =   input.output.mapfile_dir                      # put the mapfile into the runtime directory
 listsolampclock.control.filename                             =   listsolampclock.mapfile                       # name of the generated mapfile
 listsolampclock.control.pattern                              =   sol000_instrument*
@@ -44,22 +44,35 @@ match_files_tar.control.mapfile_ms                           =   listtar.output.
 ### --- Data preparation for the target
 flagtar.control.type                                         =   dppp
 flagtar.control.max_per_node                                 =   {{ max_per_node_limit }}
+flagtar.control.mapfiles_in                                  =   [match_files_tar.output.mapfile,match_files_tar.output.parmdbs]
+flagtar.control.inputkeys                                    =   [infiles,parmdbs]
 flagtar.control.error_tolerance                              =   {{ error_tolerance }}
 flagtar.argument.numthreads                                  =   {{ max_dppp_threads }}
-flagtar.argument.msin                                        =   match_files_tar.output.mapfile
+flagtar.argument.msin                                        =   infiles
 flagtar.argument.msin.baseline                               =   [CR]S*&&
 flagtar.argument.msin.datacolumn                             =   DATA
 flagtar.argument.msout.datacolumn                            =   DATA
 flagtar.argument.msout.writefullresflag                      =   False
-flagtar.argument.steps                                       =   [filter,flag,flagelevation,avg,count]
+flagtar.argument.steps                                       =   [filter,flagelevation,{{ tables2apply }},correctbeam,flag,avg,count]
 flagtar.argument.filter.type                                 =   filter
 flagtar.argument.filter.baseline                             =   CS*&&;CS*&&RS*;RS*&&{{ bad_stations }}
 flagtar.argument.filter.remove                               =   True
+flagtar.argument.flagelevation.type                          =   preflagger
+flagtar.argument.flagelevation.elevation                     =   {{ flag_elevation }}
+flagtar.argument.correctamp.type                             =   correct
+flagtar.argument.correctamp.parmdb                           =   parmdbs
+flagtar.argument.correctamp.correction                       =   gain
+flagtar.argument.correctamp.updateweights                    =   True # correct for wrong weights in the bandpass
+flagtar.argument.correctclock.type                           =   correct
+flagtar.argument.correctclock.parmdb                         =   parmdbs
+flagtar.argument.correctclock.correction                     =   clock
+flagtar.argument.correctbeam.type                            =   applybeam
+flagtar.argument.correctbeam.invert                          =   True
+flagtar.argument.correctbeam.usechannelfreq                  =   False
+flagtar.argument.correctbeam.updateweights                   =   True # add reweight
 flagtar.argument.flag.type                                   =   aoflagger
 flagtar.argument.flag.keepstatistics                         =   True
 flagtar.argument.flag.strategy                               =   {{ lofar_directory }}/share/rfistrategies/{{ rfistrategy }} ## better strategy for averaged data (also for LBA)
-flagtar.argument.flagelevation.type                          =   preflagger
-flagtar.argument.flagelevation.elevation                     =   {{ flag_elevation }}
 flagtar.argument.avg.type                                    =   averager
 flagtar.argument.avg.freqstep                                =   {{ average_freqstep }}
 flagtar.argument.avg.timestep                                =   {{ average_timestep }}
@@ -103,31 +116,6 @@ listcolumn2.control.join_files                               =   :DATA
 listcolumn2.control.newname                                  =   listcolumn2.mapfile
 
 ### Step: 04
-### --- Apply bandpass and clock correction
-applysol.control.type                                        =   dppp
-applysol.control.inplace                                     =   True
-applysol.control.error_tolerance                             =   {{ error_tolerance }}
-applysol.control.max_per_node                                =   {{ max_per_node_limit }}
-applysol.control.mapfiles_in                                 =   [flagtar.output.mapfile,match_files_tar.output.parmdbs]
-applysol.control.inputkeys                                   =   [infiles,parmdbs]
-applysol.argument.numthreads                                 =   {{ max_dppp_threads }}
-applysol.argument.msin                                       =   infiles
-applysol.argument.msin.datacolumn                            =   DATA
-applysol.argument.msout.datacolumn                           =   CORRECTED_DATA
-applysol.argument.steps                                      =   [{{ tables2apply }},correctbeam]
-applysol.argument.correctamp.type                            =   correct
-applysol.argument.correctamp.parmdb                          =   parmdbs
-applysol.argument.correctamp.correction                      =   gain
-applysol.argument.correctamp.updateweights                   =   True # correct for wrong weights in the bandpass
-applysol.argument.correctclock.type                          =   correct
-applysol.argument.correctclock.parmdb                        =   parmdbs
-applysol.argument.correctclock.correction                    =   clock
-applysol.argument.correctbeam.type                           =   applybeam
-applysol.argument.correctbeam.invert                         =   True
-applysol.argument.correctbeam.usechannelfreq                 =   False
-applysol.argument.correctbeam.updateweights                  =   True # add reweight
-
-### Step: 05
 ### --- Concatenate target observation
 concat.control.type                                          =   dppp
 concat.control.error_tolerance                               =   {{ error_tolerance }}
@@ -137,7 +125,7 @@ concat.control.mapfile_out                                   =   do_sortmap_maps
 concat.control.inputkey                                      =   msin
 concat.argument.numthreads                                   =   {{ max_dppp_threads }}
 concat.argument.msin.baseline                                =   [CR]S*&
-concat.argument.msin.datacolumn                              =   CORRECTED_DATA 
+concat.argument.msin.datacolumn                              =   DATA 
 concat.argument.msin.missingdata                             =   True
 concat.argument.msin.orderms                                 =   False
 concat.argument.msout.writefullresflag                       =   False
@@ -147,7 +135,7 @@ concat.argument.flag.type                                    =   aoflagger
 concat.argument.flag.keepstatistics                          =   True
 concat.argument.flag.strategy                                =   {{ lofar_directory }}/share/rfistrategies/{{ rfistrategy }} ## better strategy for averaged data (also for LBA)
 
-### Step: 06
+### Step: 05
 ### --- Split MS by time
 split.control.type                                           =   executable_args
 split.control.executable                                     =   {{ scripts }}/split_ms_by_time.py
