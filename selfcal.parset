@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps to run
-pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losototec,applytec,image_high1,createmap_high_image,mask_high,image_high2,listmodel,filter_model,make_sourcedb_target,listsourcedbtar3,predicttar_high,subtract_model,image_low,createmap_low_image,listmodel_low,mask_low,filter_model_low,make_sourcedb_target_low,listsourcedbtar4,predicttar_low,corrupt_model,subtract_model_low,restore_model]
+pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,listcolumn,listinst,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losotoplot,applytec,image_high1,createmap_high_image,mask_high,image_high2,listmodel,filter_model,make_sourcedb_target,listsourcedbtar3,predicttar_high,subtract_model,image_low,createmap_low_image,listmodel_low,mask_low,filter_model_low,make_sourcedb_target_low,listsourcedbtar4,predicttar_low,corrupt_model,subtract_model_low,restore_model,loop,image_deep,image_deep_high]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -36,7 +36,7 @@ listtemp2.control.type                                       =   createMapfile  
 listtemp2.control.method                                     =   mapfile_from_folder        # look for all files in a given directory
 listtemp2.control.folder                                     =   {{ target_directory }}     # directory in which to look for the data
 listtemp2.control.mapfile_dir                                =   input.output.mapfile_dir   # put the mapfile into the runtime directory
-listtemp2.control.filename                                   =   listtemp2.mapfile           # name of the generated mapfile
+listtemp2.control.filename                                   =   listtemp2.mapfile          # name of the generated mapfile
 listtemp2.control.pattern                                    =   {{ target_template }}      # use only files that match this pattern
 
 ### Step: 00d
@@ -54,6 +54,22 @@ listtec.control.type                                         =   changeMapfile
 listtec.control.mapfile_in                                   =   listsplit.output.mapfile
 listtec.control.join_files                                   =   instrument-tec
 listtec.control.newname                                      =   listtec.mapfile
+
+### Step: 00f
+### --- Update mapfile for conversion to circular
+listcolumn.control.kind                                      =   plugin
+listcolumn.control.type                                      =   changeMapfile
+listcolumn.control.mapfile_in                                =   listsplit.output.mapfile
+listcolumn.control.add_name                                  =   :CORRECTED_DATA
+listcolumn.control.newname                                   =   selfcal-listcolumn.mapfile
+
+### Step: 00g
+### --- Update mapfile for conversion to circular
+listinst.control.kind                                        =   plugin
+listinst.control.type                                        =   changeMapfile
+listinst.control.mapfile_in                                  =   listsplit.output.mapfile
+listinst.control.join_files                                  =   instrument
+listinst.control.newname                                     =   selfcal-listinst.mapfile
 
 ### Step: 01
 ### --- Adding MODEL columns
@@ -137,6 +153,7 @@ fixFRtar.argument.flags                                      =   [listFRtar.outp
 ### --- Smooth the data (baseline-based)
 smoothtar.control.type                                       =   executable_args
 smoothtar.control.error_tolerance                            =   {{ error_tolerance }}
+smoothtar.control.max_per_node                               =   1
 smoothtar.control.executable                                 =   {{ scripts }}/BLsmooth.py
 smoothtar.argument.flags                                     =   [-r,-f,0.2,-i,DATA,-o,SMOOTHED_DATA,listsplit.output.mapfile]
 
@@ -153,15 +170,15 @@ teccal.argument.msin.datacolumn                              =   SMOOTHED_DATA
 teccal.argument.msin.baseline                                =   [CR]S*&
 teccal.argument.msout.datacolumn                             =   CORRECTED_DATA
 teccal.argument.steps                                        =   [filter,gaincal]
-teccal.argument.filter.blrange                               =   [1500,1e30]
+teccal.argument.filter.blrange                               =   [1000,1e30]
 teccal.argument.gaincal.type                                 =   gaincal
 teccal.argument.gaincal.parmdb                               =   parmdbs
-teccal.argument.gaincal.caltype                              =   tecandphase
+teccal.argument.gaincal.caltype                              =   tec
 teccal.argument.gaincal.maxiter                              =   500
+teccal.argument.gaincal.usemodelcolumn                       =   True
 teccal.argument.gaincal.nchan                                =   1
 teccal.argument.gaincal.solint                               =   1
-teccal.argument.gaincal.propagatesolutions                   =   False
-teccal.argument.gaincal.usemodelcolumn                       =   True
+teccal.argument.gaincal.propagatesolutions                   =   True
 
 ### Step: 09a
 ### --- Creating VDS files
@@ -192,42 +209,42 @@ h5parmtec.argument.flags                                     =   [-v,outputkey,g
 
 ### Step: 09c
 ### --- Running losoto to plot, flag and do the Farady Rotation extraction
-losototec.control.type                                       =   executable_args
-losototec.control.executable                                 =   {{ losoto_directory }}/bin/losoto
-losototec.control.parsetasfile                               =   True
-losototec.control.args_format                                =   losoto
-losototec.argument.flags                                     =   [-v,h5parmtec.output.mapfile]
-losototec.argument.LoSoTo.Steps                              =   [plotTEC, plotCSP, plotCSPTEC]
-losototec.argument.LoSoTo.Solset                             =   [sol000]
-losototec.argument.LoSoTo.Soltab                             =   []
-losototec.argument.LoSoTo.SolType                            =   []
-losototec.argument.LoSoTo.ant                                =   []
-losototec.argument.LoSoTo.pol                                =   [XX, YY]
-losototec.argument.LoSoTo.dir                                =   []
-losototec.argument.LoSoTo.Ncpu                               =   {{ max_per_node }}
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Operation         =   PLOT
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Soltab            =   [sol000/scalarphase000]
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Axes              =   time
-losototec.argument.LoSoTo.Steps.plotCSPTEC.TableAxis         =   ant
-losototec.argument.LoSoTo.Steps.plotCSPTEC.PlotFlag          =   True
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Prefix            =   plots-tec/csptec_
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Reference         =   'CS001LBA'
-losototec.argument.LoSoTo.Steps.plotCSPTEC.Add               =   [sol000/tec000]
-losototec.argument.LoSoTo.Steps.plotCSP.Operation            =   PLOT
-losototec.argument.LoSoTo.Steps.plotCSP.Soltab               =   [sol000/scalarphase000]
-losototec.argument.LoSoTo.Steps.plotCSP.Axes                 =   time
-losototec.argument.LoSoTo.Steps.plotCSP.TableAxis            =   ant
-losototec.argument.LoSoTo.Steps.plotCSP.PlotFlag             =   True
-losototec.argument.LoSoTo.Steps.plotCSP.Prefix               =   plots-tec/csp_
-losototec.argument.LoSoTo.Steps.plotCSP.Reference            =   'CS001LBA'
-losototec.argument.LoSoTo.Steps.plotTEC.Operation            =   PLOT
-losototec.argument.LoSoTo.Steps.plotTEC.Soltab               =   [sol000/tec000]
-losototec.argument.LoSoTo.Steps.plotTEC.Axes                 =   time
-losototec.argument.LoSoTo.Steps.plotTEC.TableAxis            =   ant
-losototec.argument.LoSoTo.Steps.plotTEC.PlotFlag             =   True
-losototec.argument.LoSoTo.Steps.plotTEC.MinMax               =   [-0.5,0.5]
-losototec.argument.LoSoTo.Steps.plotTEC.Prefix               =   plots-tec/tec_
-losototec.argument.LoSoTo.Steps.plotTEC.Reference            =  'CS001LBA'
+losotoplot.control.type                                      =   executable_args
+losotoplot.control.executable                                =   {{ losoto_directory }}/bin/losoto
+losotoplot.control.parsetasfile                              =   True
+losotoplot.control.args_format                               =   losoto
+losotoplot.argument.flags                                    =   [-v,h5parmtec.output.mapfile]
+losotoplot.argument.LoSoTo.Steps                             =   [plotTEC, plotCSP, plotCSPTEC]
+losotoplot.argument.LoSoTo.Solset                            =   [sol000]
+losotoplot.argument.LoSoTo.Soltab                            =   []
+losotoplot.argument.LoSoTo.SolType                           =   []
+losotoplot.argument.LoSoTo.ant                               =   []
+losotoplot.argument.LoSoTo.pol                               =   [XX, YY]
+losotoplot.argument.LoSoTo.dir                               =   []
+losotoplot.argument.LoSoTo.Ncpu                              =   {{ max_per_node }}
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Operation        =   PLOT
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Soltab           =   [sol000/scalarphase000]
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Axes             =   time
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.TableAxis        =   ant
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.PlotFlag         =   True
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Prefix           =   plots-tec/csptec_
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Reference        =   'CS001LBA'
+losotoplot.argument.LoSoTo.Steps.plotCSPTEC.Add              =   [sol000/tec000]
+losotoplot.argument.LoSoTo.Steps.plotCSP.Operation           =   PLOT
+losotoplot.argument.LoSoTo.Steps.plotCSP.Soltab              =   [sol000/scalarphase000]
+losotoplot.argument.LoSoTo.Steps.plotCSP.Axes                =   time
+losotoplot.argument.LoSoTo.Steps.plotCSP.TableAxis           =   ant
+losotoplot.argument.LoSoTo.Steps.plotCSP.PlotFlag            =   True
+losotoplot.argument.LoSoTo.Steps.plotCSP.Prefix              =   plots-tec/csp_
+losotoplot.argument.LoSoTo.Steps.plotCSP.Reference           =   'CS001LBA'
+losotoplot.argument.LoSoTo.Steps.plotTEC.Operation           =   PLOT
+losotoplot.argument.LoSoTo.Steps.plotTEC.Soltab              =   [sol000/tec000]
+losotoplot.argument.LoSoTo.Steps.plotTEC.Axes                =   time
+losotoplot.argument.LoSoTo.Steps.plotTEC.TableAxis           =   ant
+losotoplot.argument.LoSoTo.Steps.plotTEC.PlotFlag            =   True
+losotoplot.argument.LoSoTo.Steps.plotTEC.MinMax              =   [-0.5,0.5]
+losotoplot.argument.LoSoTo.Steps.plotTEC.Prefix              =   plots-tec/tec_
+losotoplot.argument.LoSoTo.Steps.plotTEC.Reference           =  'CS001LBA'
 
 ### Step: 10
 ### --- Apply TEC and common scalar phase 
@@ -241,7 +258,7 @@ applytec.argument.numthreads                                 =   {{ max_dppp_thr
 applytec.argument.msin                                       =   infiles
 applytec.argument.msin.datacolumn                            =   DATA
 applytec.argument.msout.datacolumn                           =   CORRECTED_DATA
-applytec.argument.steps                                      =   [correcttec,correctphase]
+applytec.argument.steps                                      =   [correcttec,correctphase,count]
 applytec.argument.correcttec.type                            =   applycal
 applytec.argument.correcttec.parmdb                          =   parmdbs
 applytec.argument.correcttec.correction                      =   tec
@@ -276,7 +293,7 @@ image_high1.argument.pol                                     =   I
 image_high1.argument.fit-spectral-pol                        =   2
 image_high1.argument.channelsout                             =   10
 image_high1.argument.auto-threshold                          =   20
-image_high1.argument.minuv-l                                 =   100
+image_high1.argument.minuv-l                                 =   30
 
 ### Step: 12a
 # create a map with the wsclean MFS image only
@@ -286,7 +303,7 @@ createmap_high_image.control.method                          =   mapfile_from_fo
 createmap_high_image.control.mapfile_dir                     =   input.output.mapfile_dir
 createmap_high_image.control.filename                        =   createmap_high_image.mapfile
 createmap_high_image.control.folder                          =   {{ job_directory }}
-createmap_high_image.control.pattern                         =   *high1*MFS-image.fits
+createmap_high_image.control.pattern                         =   *image_high1*MFS-image.fits
 
 ### Step: 12b
 # make mask for the high-res image
@@ -294,7 +311,7 @@ mask_high.control.type                                       =   pythonplugin
 mask_high.control.executable                                 =   {{ scripts }}/make_clean_mask.py
 mask_high.control.max_per_node                               =   1
 mask_high.control.error_tolerance                            =   {{ error_tolerance }}
-mask_high.control.mapfile_in                                 =   createmap_high_image.output.mapfile
+mask_high.control.mapfile_in                                 =   image_high1.output.image_high1-image.fits.mapfile
 mask_high.control.inputkey                                   =   imagefile
 mask_high.control.outputkey                                  =   maskfile
 mask_high.argument.flags                                     =   [imagefile,maskfile]
@@ -319,7 +336,7 @@ image_high2.control.max_per_node                             =   1
 image_high2.control.error_tolerance                          =   {{ error_tolerance }}
 image_high2.control.mapfiles_in                              =   [listsplit2.output.mapfile,mask_high.output.mapfile]
 image_high2.control.inputkeys                                =   [infiles,mask]
-image_high2.argument.flags                                   =   [-reorder,-no-update-model-required,-joinchannels,-save-source-list,infiles]
+image_high2.argument.flags                                   =   [-reorder,-no-update-model-required,-joinchannels,-multiscale,-save-source-list,infiles]
 image_high2.argument.fitsmask                                =   mask
 image_high2.argument.size                                    =   3000 3000
 image_high2.argument.trim                                    =   2500 2500
@@ -331,11 +348,13 @@ image_high2.argument.weight                                  =   briggs 0.0
 image_high2.argument.niter                                   =   100000
 image_high2.argument.maxuv-l                                 =   5000
 image_high2.argument.mgain                                   =   0.8
+image_high2.argument.multiscale-scale-bias                   =   0.5
+image_high2.argument.multiscale-scales                       =   0,3,9
 image_high2.argument.pol                                     =   I
 image_high2.argument.fit-spectral-pol                        =   2
 image_high2.argument.channelsout                             =   10
 image_high2.argument.auto-threshold                          =   0.1
-image_high2.argument.minuv-l                                 =   100
+image_high2.argument.minuv-l                                 =   30
 
 ### Step: 14a
 # create a map with the wsclean MFS image model only
@@ -444,7 +463,7 @@ createmap_low_image.control.method                           =   mapfile_from_fo
 createmap_low_image.control.mapfile_dir                      =   input.output.mapfile_dir
 createmap_low_image.control.filename                         =   createmap_low_image.mapfile
 createmap_low_image.control.folder                           =   {{ job_directory }}
-createmap_low_image.control.pattern                          =   *low*MFS-image.fits
+createmap_low_image.control.pattern                          =   *image_low*MFS-image.fits
 
 ### Step: 19b
 # create a map with the wsclean MFS image model only
@@ -487,6 +506,7 @@ filter_model_low.argument.ms                                 =   msfiles
 filter_model_low.argument.skymodel                           =   inmodel
 filter_model_low.argument.maskname                           =   inmask
 filter_model_low.argument.skymodel_cut                       =   outputkey
+filter_model_low.argument.scripts                            =   {{ scripts }}
 
 ### Step: 20a
 ### --- Create skymodel for calibrator
@@ -564,9 +584,807 @@ restore_model.control.executable                             =   {{ scripts }}/r
 restore_model.control.error_tolerance                        =   {{ error_tolerance }}
 restore_model.argument.flags                                 =   [listsplit.output.mapfile]
 
+### Step: 25
+### --- Running the selfcal pipeline in a loop
+loop.control.kind                                            =   pipeline
+loop.control.type                                            =   {{ local_directory }}/selfcal_loop.parset
+loop.argument.niter                                          =   {{ niter }}
 
-################################################################################################################################################################################################################################################################
-##                                                                                                                                                                                                                                                            ##
-##                                                                                                    End of selfcal pipeline                                                                                                                                 ##
-##                                                                                                                                                                                                                                                            ##
+### Step: 26
+# prepare mapfiles for the loop
+prep.control.kind                                            =   plugin
+prep.control.type                                            =   PrepareLoop
+prep.control.mapfile_dir                                     =   input.output.mapfile_dir
+prep.control.infile                                          =   listsplit.output.mapfile
+prep.control.jobname                                         =   {{ job_directory }}/{{ job_name }}
+prep.control.filename                                        =   prep_loop.mapfile
+prep.control.counter                                         =   selfcal-loop-steps.output.counter
+
+### Step: 27
+### --- Smooth the data (baseline-based)
+smoothtar_loop.control.type                                  =   executable_args
+smoothtar_loop.control.error_tolerance                       =   {{ error_tolerance }}
+smoothtar_loop.control.max_per_node                          =   1
+smoothtar_loop.control.executable                            =   {{ scripts }}/BLsmooth.py
+smoothtar_loop.argument.flags                                =   [-r,-f,0.2,-i,SUBTRACTED_DATA,-o,SMOOTHED_DATA,listsplit.output.mapfile]
+
+### Step: 28a
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbtec_loop.control.type                                =   executable_args
+globaldbtec_loop.control.executable                          =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbtec_loop.control.mapfiles_in                         =   [findvds.output.mapfile,selfcal-prep.output.globaldbtec]
+globaldbtec_loop.control.inputkeys                           =   [vds,globaldb]
+globaldbtec_loop.argument.flags                              =   [-v,-d,vds,-p,instrument-tec,-g,globaldb]
+
+### Step: 28b
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbFR.control.type                                      =   executable_args
+globaldbFR.control.executable                                =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbFR.control.mapfiles_in                               =   [findvds.output.mapfile,selfcal-prep.output.globaldbFR]
+globaldbFR.control.inputkeys                                 =   [vds,globaldb]
+globaldbFR.argument.flags                                    =   [-v,-d,vds,-p,instrument-fr,-g,globaldb]
+
+### Step: 28c
+### --- Import globaldb to h5parm
+h5parmtec_loop.control.type                                  =   executable_args
+h5parmtec_loop.control.executable                            =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmtec_loop.control.mapfiles_in                           =   [selfcal-prep.output.h5parmtec,selfcal-prep.output.globaldbtec]
+h5parmtec_loop.control.inputkeys                             =   [h5parm,globaldb]
+h5parmtec_loop.argument.flags                                =   [-v,h5parm,globaldb]
+
+### Step: 28d
+### --- Running losoto to plot
+losotoplot_loop.control.type                                 =   executable_args
+losotoplot_loop.control.executable                           =   {{ losoto_directory }}/bin/losoto
+losotoplot_loop.control.parsetasfile                         =   True
+losotoplot_loop.control.args_format                          =   losoto
+losotoplot_loop.control.mapfile_in                           =   selfcal-prep.output.h5parmtec
+losotoplot_loop.control.inputkey                             =   h5parm
+losotoplot_loop.argument.flags                               =   [-v,h5parm]
+losotoplot_loop.argument.LoSoTo.Steps                        =   [plotTEC, plotCSP, plotCSPTEC]
+losotoplot_loop.argument.LoSoTo.Solset                       =   [sol000]
+losotoplot_loop.argument.LoSoTo.Soltab                       =   []
+losotoplot_loop.argument.LoSoTo.SolType                      =   []
+losotoplot_loop.argument.LoSoTo.ant                          =   []
+losotoplot_loop.argument.LoSoTo.pol                          =   [XX, YY]
+losotoplot_loop.argument.LoSoTo.dir                          =   []
+losotoplot_loop.argument.LoSoTo.Ncpu                         =   {{ max_per_node }}
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Operation   =   PLOT
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Soltab      =   [sol000/scalarphase000]
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Axes        =   time
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.TableAxis   =   ant
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.PlotFlag    =   True
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Prefix      =   selfcal-prep.output.plotstec/csptec_
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Reference   =   'CS001LBA'
+losotoplot_loop.argument.LoSoTo.Steps.plotCSPTEC.Add         =   [sol000/tec000]
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.Operation      =   PLOT
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.Soltab         =   [sol000/scalarphase000]
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.Axes           =   time
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.TableAxis      =   ant
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.PlotFlag       =   True
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.Prefix         =   selfcal-prep.output.plotstec/csp_
+losotoplot_loop.argument.LoSoTo.Steps.plotCSP.Reference      =   'CS001LBA'
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.Operation      =   PLOT
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.Soltab         =   [sol000/tec000]
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.Axes           =   time
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.TableAxis      =   ant
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.PlotFlag       =   True
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.MinMax         =   [-0.5,0.5]
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.Prefix         =   selfcal-prep.output.plotstec/tec_
+losotoplot_loop.argument.LoSoTo.Steps.plotTEC.Reference      =  'CS001LBA'
+
+### Step: 29
+### --- Apply TEC and common scalar phase 
+applytec_loop.control.type                                   =   dppp
+applytec_loop.control.inplace                                =   True
+applytec_loop.control.error_tolerance                        =   {{ error_tolerance }}
+applytec_loop.control.max_per_node                           =   {{ max_per_node_limit }}
+applytec_loop.control.mapfiles_in                            =   [listsplit.output.mapfile,listtec.output.mapfile]
+applytec_loop.control.inputkeys                              =   [infiles,parmdbs]
+applytec_loop.argument.numthreads                            =   {{ max_dppp_threads }}
+applytec_loop.argument.msin                                  =   infiles
+applytec_loop.argument.msin.datacolumn                       =   SUBTRACTED_DATA
+applytec_loop.argument.msout.datacolumn                      =   CORRECTED_DATA
+applytec_loop.argument.steps                                 =   [correcttec]
+# applytec_loop.argument.steps                                 =   [correcttec,correctphase]
+applytec_loop.argument.correcttec.type                       =   applycal
+applytec_loop.argument.correcttec.parmdb                     =   parmdbs
+applytec_loop.argument.correcttec.correction                 =   tec
+# applytec_loop.argument.correctphase.type                     =   applycal
+# applytec_loop.argument.correctphase.parmdb                   =   parmdbs
+# applytec_loop.argument.correctphase.correction               =   commonscalarphase
+
+### Step: 30
+### --- Convert to circular
+lintocirc.control.type                                       =   executable_args
+lintocirc.control.max_per_node                               =   {{ max_per_node_limit }}
+lintocirc.control.error_tolerance                            =   {{ error_tolerance }}
+lintocirc.control.executable                                 =   {{ scripts }}/mslin2circ.py
+lintocirc.argument.flags                                     =   [-i,listcolumn.output.mapfile,-o,listcolumn.output.mapfile]
+
+### Step: 31
+### --- Smooth the data (baseline-based)
+smooth.control.type                                          =   executable_args
+smooth.control.error_tolerance                               =   {{ error_tolerance }}
+smooth.control.max_per_node                                  =   1
+smooth.control.executable                                    =   {{ scripts }}/BLsmooth.py
+smooth.argument.flags                                        =   [-r,-f,0.5,-i,CORRECTED_DATA,-o,SMOOTHED_DATA,listsplit.output.mapfile]
+
+### Step: 32a
+### --- Calibrate smoothed data
+smoothcal.control.type                                       =   dppp
+smoothcal.control.inplace                                    =   True
+smoothcal.control.error_tolerance                            =   {{ error_tolerance }}
+smoothcal.control.max_per_node                               =   {{ max_per_node }}
+smoothcal.control.mapfiles_in                                =   [listsplit.output.mapfile,listinst.output.mapfile]
+smoothcal.control.inputkeys                                  =   [infiles,parmdbs]
+smoothcal.argument.numthreads                                =   {{ max_dppp_threads }}
+smoothcal.argument.msin                                      =   infiles
+smoothcal.argument.msin.datacolumn                           =   SMOOTHED_DATA
+smoothcal.argument.msin.baseline                             =   [CR]S*&
+smoothcal.argument.msout.datacolumn                          =   CORRECTED_DATA
+smoothcal.argument.steps                                     =   [filter,gaincal]
+smoothcal.argument.filter.blrange                            =   [1500,1e30]
+smoothcal.argument.gaincal.type                              =   gaincal
+smoothcal.argument.gaincal.parmdb                            =   parmdbs
+smoothcal.argument.gaincal.caltype                           =   diagonal
+smoothcal.argument.gaincal.maxiter                           =   100
+smoothcal.argument.gaincal.usemodelcolumn                    =   True
+smoothcal.argument.gaincal.solint                            =   30
+smoothcal.argument.gaincal.nchan                             =   8
+smoothcal.argument.gaincal.propagatesolutions                =   True
+
+### Step: 32b
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldb.control.type                                        =   executable_args
+globaldb.control.executable                                  =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldb.control.mapfiles_in                                 =   [findvds.output.mapfile,selfcal-prep.output.globaldb]
+globaldb.control.inputkeys                                   =   [vds,globaldb]
+globaldb.argument.flags                                      =   [-v,-d,vds,-g,globaldb]
+
+### Step: 33a
+### --- Import globaldb to h5parm
+h5parmFR.control.type                                        =   executable_args
+h5parmFR.control.executable                                  =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmFR.control.mapfiles_in                                 =   [selfcal-prep.output.h5parmFR,selfcal-prep.output.globaldb]
+h5parmFR.control.inputkeys                                   =   [h5parm,globaldb]
+h5parmFR.argument.flags                                      =   [-v,h5parm,globaldb]
+
+### Step: 33b
+# losoto parset
+losotoFR.control.type                                        =   executable_args
+losotoFR.control.executable                                  =   {{ losoto_directory }}/bin/losoto
+losotoFR.control.parsetasfile                                =   True
+losotoFR.control.args_format                                 =   losoto
+losotoFR.control.mapfile_in                                  =   selfcal-prep.output.h5parmFR
+losotoFR.control.inputkey                                    =   h5parm
+losotoFR.argument.flags                                      =   [-v,h5parm]
+losotoFR.argument.LoSoTo.Steps                               =   [plotPi, plotAi1, plotAi2, plotAi3, faraday, plotFR, residuals, plotPr]
+losotoFR.argument.LoSoTo.Solset                              =   [sol000]
+losotoFR.argument.LoSoTo.Soltab                              =   []
+losotoFR.argument.LoSoTo.SolType                             =   []
+losotoFR.argument.LoSoTo.ant                                 =   []
+losotoFR.argument.LoSoTo.pol                                 =   [XX, YY]
+losotoFR.argument.LoSoTo.dir                                 =   []
+losotoFR.argument.LoSoTo.Ncpu                                =   {{ max_per_node }}
+losotoFR.argument.LoSoTo.Steps.plotPi.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotPi.Soltab                 =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.plotPi.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotPi.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotPi.DiffAxis               =   pol
+losotoFR.argument.LoSoTo.Steps.plotPi.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotPi.Prefix                 =   selfcal-prep.output.plotsFR/ph_
+losotoFR.argument.LoSoTo.Steps.plotPi.Reference              =   'CS001LBA'
+losotoFR.argument.LoSoTo.Steps.plotPi.MinMax                 =   [-3.14,3.14]
+losotoFR.argument.LoSoTo.Steps.plotAi1.Operation             =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotAi1.Soltab                =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.plotAi1.freq.minmax           =   [0,100e6,30]
+losotoFR.argument.LoSoTo.Steps.plotAi1.Axes                  =   time
+losotoFR.argument.LoSoTo.Steps.plotAi1.TableAxis             =   ant
+losotoFR.argument.LoSoTo.Steps.plotAi1.ColorAxis             =   pol
+losotoFR.argument.LoSoTo.Steps.plotAi1.PlotFlag              =   True
+losotoFR.argument.LoSoTo.Steps.plotAi1.Prefix                =   selfcal-prep.output.plotsFR/amp_
+losotoFR.argument.LoSoTo.Steps.plotAi1.Columns               =   2
+losotoFR.argument.LoSoTo.Steps.plotAi1.FigSize               =   [20,20]
+losotoFR.argument.LoSoTo.Steps.plotAi1.MinMax                =   [0,2]
+losotoFR.argument.LoSoTo.Steps.plotAi2.Operation             =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotAi2.Soltab                =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.plotAi2.time.minmax           =   [0,1e20,200]
+losotoFR.argument.LoSoTo.Steps.plotAi2.Axes                  =   freq
+losotoFR.argument.LoSoTo.Steps.plotAi2.TableAxis             =   ant
+losotoFR.argument.LoSoTo.Steps.plotAi2.ColorAxis             =   pol
+losotoFR.argument.LoSoTo.Steps.plotAi2.PlotFlag              =   True
+losotoFR.argument.LoSoTo.Steps.plotAi2.Prefix                =   selfcal-prep.output.plotsFR/amp_
+losotoFR.argument.LoSoTo.Steps.plotAi2.MinMax                =   [0,2]
+losotoFR.argument.LoSoTo.Steps.plotAi3.Operation             =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotAi3.Soltab                =   [sol000/amplitude000]
+losotoFR.argument.LoSoTo.Steps.plotAi3.Axes                  =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotAi3.TableAxis             =   ant
+losotoFR.argument.LoSoTo.Steps.plotAi3.PlotFlag              =   True
+losotoFR.argument.LoSoTo.Steps.plotAi3.Prefix                =   selfcal-prep.output.plotsFR/amp_
+losotoFR.argument.LoSoTo.Steps.plotAi3.MinMax                =   [0,2]
+losotoFR.argument.LoSoTo.Steps.faraday.Operation             =   FARADAY
+losotoFR.argument.LoSoTo.Steps.faraday.Soltab                =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.faraday.MaxResidual           =   2.
+losotoFR.argument.LoSoTo.Steps.plotFR.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotFR.Soltab                 =   [sol000/rotationmeasure000]
+losotoFR.argument.LoSoTo.Steps.plotFR.Axes                   =   [time]
+losotoFR.argument.LoSoTo.Steps.plotFR.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotFR.Prefix                 =   selfcal-prep.output.plotsFR/fr
+losotoFR.argument.LoSoTo.Steps.residuals.Operation           =   RESIDUALS
+losotoFR.argument.LoSoTo.Steps.residuals.Soltab              =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.residuals.Sub                 =   [sol000/rotationmeasure000]
+losotoFR.argument.LoSoTo.Steps.plotPr.Operation              =   PLOT
+losotoFR.argument.LoSoTo.Steps.plotPr.Soltab                 =   [sol000/phase000]
+losotoFR.argument.LoSoTo.Steps.plotPr.Axes                   =   [time,freq]
+losotoFR.argument.LoSoTo.Steps.plotPr.TableAxis              =   ant
+losotoFR.argument.LoSoTo.Steps.plotPr.DiffAxis               =   pol
+losotoFR.argument.LoSoTo.Steps.plotPr.PlotFlag               =   True
+losotoFR.argument.LoSoTo.Steps.plotPr.Prefix                 =   selfcal-prep.output.plotsFR/phRes_
+losotoFR.argument.LoSoTo.Steps.plotPr.Reference              =   'CS001LBA'
+losotoFR.argument.LoSoTo.Steps.plotPr.MinMax                 =   [-3.14,3.14]
+
+### Step: 33c
+### --- Export rotationmeasure from h5parm to globaldb-fr
+h5parmexpFR.control.type                                     =   executable_args
+h5parmexpFR.control.executable                               =   {{ scripts }}/H5parm_exporter.py
+h5parmexpFR.control.mapfiles_in                              =   [selfcal-prep.output.h5parmFR,selfcal-prep.output.globaldbFR]
+h5parmexpFR.control.inputkeys                                =   [h5parm,globaldb]
+h5parmexpFR.argument.flags                                   =   [-v,-c,-t,rotationmeasure000,h5parm,globaldb]
+
+### Step: 33d
+### --- List new solution tables
+listsolFR.control.kind                                       =   plugin                                    # plugin -> short, non-parallel step
+listsolFR.control.type                                       =   createMapfile                             # generate a new mapfile
+listsolFR.control.method                                     =   mapfile_from_folder                       # look for all files in a given directory
+listsolFR.control.folder                                     =   selfcal-prep.output.globaldbFR_folder
+listsolFR.control.mapfile_dir                                =   input.output.mapfile_dir                  # put the mapfile into the runtime directory
+listsolFR.control.filename                                   =   selfcal-listsolFR.mapfile                 # name of the generated mapfile
+listsolFR.control.pattern                                    =   sol000_instrument*   
+
+### Step: 34
+### --- Convert to circular
+circtolin.control.type                                       =   executable_args
+circtolin.control.max_per_node                               =   {{ max_per_node_limit }}
+circtolin.control.error_tolerance                            =   {{ error_tolerance }}
+circtolin.control.executable                                 =   {{ scripts }}/mslin2circ.py
+circtolin.argument.flags                                     =   [-r,-i,listcolumn.output.mapfile,-o,listcolumn.output.mapfile]
+
+### Step: 35
+### --- Apply FaradyRotation correction
+applyFR.control.type                                         =   dppp
+applyFR.control.inplace                                      =   True
+applyFR.control.error_tolerance                              =   {{ error_tolerance }}
+applyFR.control.max_per_node                                 =   {{ max_per_node_limit }}
+applyFR.control.mapfiles_in                                  =   [listsplit.output.mapfile,selfcal-listsolFR.output.mapfile]
+applyFR.control.inputkeys                                    =   [infiles,parmdbs]
+applyFR.argument.numthreads                                  =   {{ max_dppp_threads }}
+applyFR.argument.msin                                        =   infiles
+applyFR.argument.msin.datacolumn                             =   CORRECTED_DATA
+applyFR.argument.msout.datacolumn                            =   CORRECTED_DATA
+applyFR.argument.steps                                       =   [correct]
+applyFR.argument.correct.type                                =   correct
+applyFR.argument.correct.parmdb                              =   parmdbs
+applyFR.argument.correct.correction                          =   RotationMeasure
+
+### Step: 36a
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbCD.control.type                                      =   executable_args
+globaldbCD.control.executable                                =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbCD.control.mapfiles_in                               =   [findvds.output.mapfile,selfcal-prep.output.globaldbCD]
+globaldbCD.control.inputkeys                                 =   [vds,globaldb]
+globaldbCD.argument.flags                                    =   [-v,-d,vds,-g,globaldb]
+
+### Step: 36b
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbamp.control.type                                     =   executable_args
+globaldbamp.control.executable                               =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbamp.control.mapfiles_in                              =   [findvds.output.mapfile,selfcal-prep.output.globaldbamp]
+globaldbamp.control.inputkeys                                =   [vds,globaldb]
+globaldbamp.argument.flags                                   =   [-v,-d,vds,-g,globaldb]
+
+### Step: 37a
+### --- Import globaldb to h5parm
+h5parmCD.control.type                                        =   executable_args
+h5parmCD.control.executable                                  =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmCD.control.mapfiles_in                                 =   [selfcal-prep.output.h5parmCD,selfcal-prep.output.globaldbCD]
+h5parmCD.control.inputkeys                                   =   [h5parm,globaldb]
+h5parmCD.argument.flags                                      =   [-v,h5parm,globaldb]
+
+### Step: 37b
+### --- Import globaldb to h5parm
+h5parmamp.control.type                                       =   executable_args
+h5parmamp.control.executable                                 =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmamp.control.mapfiles_in                                =   [selfcal-prep.output.h5parmamp,selfcal-prep.output.globaldbamp]
+h5parmamp.control.inputkeys                                  =   [h5parm,globaldb]
+h5parmamp.argument.flags                                     =   [-v,h5parm,globaldb]
+
+### Step: 38a
+# losoto parset for crossdelays
+losotoCD.control.type                                        =   executable_args
+losotoCD.control.executable                                  =   {{ losoto_directory }}/bin/losoto
+losotoCD.control.parsetasfile                                =   True
+losotoCD.control.args_format                                 =   losoto
+losotoCD.control.mapfile_in                                  =   selfcal-prep.output.h5parmCD
+losotoCD.control.inputkey                                    =   h5parm
+losotoCD.argument.flags                                      =   [-v,h5parm]
+losotoCD.argument.LoSoTo.Steps                               =   [duplicateBkp, plotPi, plotPi2, crossdelay, plotCD, plotCD2, residuals, plotPr, plotPr2, reset]
+losotoCD.argument.LoSoTo.Solset                              =   [sol000]
+losotoCD.argument.LoSoTo.Soltab                              =   []
+losotoCD.argument.LoSoTo.SolType                             =   []
+losotoCD.argument.LoSoTo.ant                                 =   []
+losotoCD.argument.LoSoTo.pol                                 =   [XX, YY]
+losotoCD.argument.LoSoTo.dir                                 =   []
+losotoCD.argument.LoSoTo.Ncpu                                =   {{ max_per_node }}
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.Operation        =   DUPLICATE
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.InTable          =   sol000/phase000
+losotoCD.argument.LoSoTo.Steps.duplicateBkp.OutTable         =   sol000/phaseOrig000
+losotoCD.argument.LoSoTo.Steps.plotPi.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPi.Soltab                 =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPi.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotPi.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotPi.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotPi.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotPi.Prefix                 =   selfcal-prep.output.plotsCD/ph-init_
+losotoCD.argument.LoSoTo.Steps.plotPi.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotPi.MinMax                 =   [-1,+1]
+losotoCD.argument.LoSoTo.Steps.plotPi2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPi2.Soltab                =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPi2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotPi2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotPi2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotPi2.ColorAxis             =   pol
+losotoCD.argument.LoSoTo.Steps.plotPi2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotPi2.Prefix                =   selfcal-prep.output.plotsCD/ph-init_
+losotoCD.argument.LoSoTo.Steps.plotPi2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.crossdelay.Soltab             =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.crossdelay.Operation          =   CROSSDELAY
+losotoCD.argument.LoSoTo.Steps.crossdelay.OutTable           =   crossdelay
+losotoCD.argument.LoSoTo.Steps.crossdelay.MaxResidual        =   2.
+losotoCD.argument.LoSoTo.Steps.crossdelay.Smooth             =   51
+losotoCD.argument.LoSoTo.Steps.plotCD.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotCD.Soltab                 =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotCD.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotCD.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotCD.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotCD.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotCD.Prefix                 =   selfcal-prep.output.plotsCD/ph-CD_
+losotoCD.argument.LoSoTo.Steps.plotCD.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotCD.MinMax                 =   [-1,+1]
+losotoCD.argument.LoSoTo.Steps.plotCD2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotCD2.Soltab                =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotCD2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotCD2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotCD2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotCD2.ColorAxis             =   pol
+losotoCD.argument.LoSoTo.Steps.plotCD2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotCD2.Prefix                =   selfcal-prep.output.plotsCD/ph-CD_
+losotoCD.argument.LoSoTo.Steps.plotCD2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.residuals.Operation           =   RESIDUALS
+losotoCD.argument.LoSoTo.Steps.residuals.Soltab              =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.residuals.Sub                 =   [sol000/crossdelay]
+losotoCD.argument.LoSoTo.Steps.plotPr.Operation              =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPr.Soltab                 =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPr.Axes                   =   [time,freq]
+losotoCD.argument.LoSoTo.Steps.plotPr.TableAxis              =   ant
+losotoCD.argument.LoSoTo.Steps.plotPr.DiffAxis               =   pol
+losotoCD.argument.LoSoTo.Steps.plotPr.PlotFlag               =   True
+losotoCD.argument.LoSoTo.Steps.plotPr.Prefix                 =   selfcal-prep.output.plotsCD/ph-res_
+losotoCD.argument.LoSoTo.Steps.plotPr.Reference              =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.plotPr.MinMax                 =   [-1,+1]
+losotoCD.argument.LoSoTo.Steps.plotPr2.Operation             =   PLOT
+losotoCD.argument.LoSoTo.Steps.plotPr2.Soltab                =   [sol000/phase000]
+losotoCD.argument.LoSoTo.Steps.plotPr2.time.minmax           =   [0,1e20,500]
+losotoCD.argument.LoSoTo.Steps.plotPr2.Axes                  =   freq
+losotoCD.argument.LoSoTo.Steps.plotPr2.TableAxis             =   ant
+losotoCD.argument.LoSoTo.Steps.plotPr2.ColorAxis             =   pol
+losotoCD.argument.LoSoTo.Steps.plotPr2.PlotFlag              =   True
+losotoCD.argument.LoSoTo.Steps.plotPr2.Prefix                =   selfcal-prep.output.plotsCD/ph-res_
+losotoCD.argument.LoSoTo.Steps.plotPr2.Reference             =   'CS001LBA'
+losotoCD.argument.LoSoTo.Steps.reset.Operation               =   RESET
+losotoCD.argument.LoSoTo.Steps.reset.Soltab                  =   [sol000/amplitude000]
+
+### Step: 38b
+### --- Import globaldb to h5parm
+losotoamp.control.type                                       =   executable_args
+losotoamp.control.executable                                 =   {{ losoto_directory }}/bin/losoto
+losotoamp.control.parsetasfile                               =   True
+losotoamp.control.args_format                                =   losoto
+losotoamp.control.mapfile_in                                 =   selfcal-prep.output.h5parmamp
+losotoamp.control.inputkey                                   =   h5parm
+losotoamp.argument.flags                                     =   [-v,h5parm]
+losotoamp.argument.LoSoTo.Steps                              =   [duplicateAbkp, plotAi1, plotAi2, plotAi3, flag, smoothA, plotAs, residualA, plotAr, resetP, norm]
+losotoamp.argument.LoSoTo.Solset                             =   [sol000]
+losotoamp.argument.LoSoTo.Soltab                             =   []
+losotoamp.argument.LoSoTo.SolType                            =   []
+losotoamp.argument.LoSoTo.ant                                =   []
+losotoamp.argument.LoSoTo.pol                                =   []
+losotoamp.argument.LoSoTo.dir                                =   []
+losotoamp.argument.LoSoTo.Ncpu                               =   {{ max_per_node }}
+losotoamp.argument.LoSoTo.Steps.duplicateAbkp.Operation      =   DUPLICATE
+losotoamp.argument.LoSoTo.Steps.duplicateAbkp.InTable        =   sol000/amplitude000
+losotoamp.argument.LoSoTo.Steps.duplicateAbkp.OutTable       =   sol000/amplitudeOrig000
+losotoamp.argument.LoSoTo.Steps.plotAi1.Operation            =   PLOT
+losotoamp.argument.LoSoTo.Steps.plotAi1.Soltab               =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.plotAi1.freq.minmax          =   [0,100e6,50]
+losotoamp.argument.LoSoTo.Steps.plotAi1.Axes                 =   time
+losotoamp.argument.LoSoTo.Steps.plotAi1.TableAxis            =   ant
+losotoamp.argument.LoSoTo.Steps.plotAi1.ColorAxis            =   pol
+losotoamp.argument.LoSoTo.Steps.plotAi1.PlotFlag             =   True
+losotoamp.argument.LoSoTo.Steps.plotAi1.Prefix               =   selfcal-prep.output.plotsamp/amp_
+losotoamp.argument.LoSoTo.Steps.plotAi1.Columns              =   4
+losotoamp.argument.LoSoTo.Steps.plotAi1.FigSize              =   [20,20]
+losotoamp.argument.LoSoTo.Steps.plotAi2.Operation            =   PLOT
+losotoamp.argument.LoSoTo.Steps.plotAi2.Soltab               =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.plotAi2.time.minmax          =   [0,1e20,500]
+losotoamp.argument.LoSoTo.Steps.plotAi2.Axes                 =   freq
+losotoamp.argument.LoSoTo.Steps.plotAi2.TableAxis            =   ant
+losotoamp.argument.LoSoTo.Steps.plotAi2.ColorAxis            =   pol
+losotoamp.argument.LoSoTo.Steps.plotAi2.PlotFlag             =   True
+losotoamp.argument.LoSoTo.Steps.plotAi2.Prefix               =   selfcal-prep.output.plotsamp/amp_
+losotoamp.argument.LoSoTo.Steps.plotAi3.Operation            =   PLOT
+losotoamp.argument.LoSoTo.Steps.plotAi3.Soltab               =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.plotAi3.Axes                 =   [time,freq]
+losotoamp.argument.LoSoTo.Steps.plotAi3.TableAxis            =   ant
+losotoamp.argument.LoSoTo.Steps.plotAi3.PlotFlag             =   True
+losotoamp.argument.LoSoTo.Steps.plotAi3.Prefix               =   selfcal-prep.output.plotsamp/amp_
+losotoamp.argument.LoSoTo.Steps.plotAi3.MinMax               =   [0.8,1.2]
+losotoamp.argument.LoSoTo.Steps.flag.Operation               =   FLAG
+losotoamp.argument.LoSoTo.Steps.flag.Soltab                  =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.flag.Axes                    =   [time,freq]
+losotoamp.argument.LoSoTo.Steps.flag.MaxCycles               =   1
+losotoamp.argument.LoSoTo.Steps.flag.MaxRms                  =   5
+losotoamp.argument.LoSoTo.Steps.flag.Order                   =   [50,50]
+losotoamp.argument.LoSoTo.Steps.flag.Replce                  =   False
+losotoamp.argument.LoSoTo.Steps.flag.PreFlagZeros            =   False
+losotoamp.argument.LoSoTo.Steps.flag.Mode                    =   smooth
+losotoamp.argument.LoSoTo.Steps.smoothA.Operation            =   SMOOTH
+losotoamp.argument.LoSoTo.Steps.smoothA.Soltab               =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.smoothA.Axes                 =   [ant]
+losotoamp.argument.LoSoTo.Steps.smoothA.Mode                 =   median
+losotoamp.argument.LoSoTo.Steps.plotAs.Operation             =   PLOT
+losotoamp.argument.LoSoTo.Steps.plotAs.Soltab                =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.plotAs.Axes                  =   [time,freq]
+losotoamp.argument.LoSoTo.Steps.plotAs.TableAxis             =   ant
+losotoamp.argument.LoSoTo.Steps.plotAs.PlotFlag              =   True
+losotoamp.argument.LoSoTo.Steps.plotAs.Prefix                =   selfcal-prep.output.plotsamp/ampSmooth_
+losotoamp.argument.LoSoTo.Steps.plotAs.MinMax                =   [0.8,1.2]
+losotoamp.argument.LoSoTo.Steps.residualA.Operation          =   RESIDUALS
+losotoamp.argument.LoSoTo.Steps.residualA.Soltab             =   [sol000/amplitudeOrig000]
+losotoamp.argument.LoSoTo.Steps.residualA.Sub                =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.residualA.Ratio              =   True
+losotoamp.argument.LoSoTo.Steps.plotAr.Operation             =   PLOT
+losotoamp.argument.LoSoTo.Steps.plotAr.Soltab                =   [sol000/amplitudeOrig000]
+losotoamp.argument.LoSoTo.Steps.plotAr.Axes                  =   [time,freq]
+losotoamp.argument.LoSoTo.Steps.plotAr.TableAxis             =   ant
+losotoamp.argument.LoSoTo.Steps.plotAr.PlotFlag              =   True
+losotoamp.argument.LoSoTo.Steps.plotAr.Prefix                =   selfcal-prep.output.plotsamp/ampRes_
+losotoamp.argument.LoSoTo.Steps.resetP.Operation             =   RESET
+losotoamp.argument.LoSoTo.Steps.resetP.Soltab                =   [sol000/phase000]
+losotoamp.argument.LoSoTo.Steps.norm.Operation               =   NORM
+losotoamp.argument.LoSoTo.Steps.norm.Soltab                  =   [sol000/amplitude000]
+losotoamp.argument.LoSoTo.Steps.norm.NormVal                 =   1.
+losotoamp.argument.LoSoTo.Steps.norm.NormAxes                =   [time,freq,ant]
+
+### Step: 39a
+### --- Export rotationmeasure from h5parm to globaldb-fr
+h5parmexpCD.control.type                                     =   executable_args
+h5parmexpCD.control.executable                               =   {{ scripts }}/H5parm_exporter.py
+h5parmexpCD.control.mapfiles_in                              =   [selfcal-prep.output.h5parmCD,selfcal-prep.output.globaldbCD]
+h5parmexpCD.control.inputkeys                                =   [h5parm,globaldb]
+h5parmexpCD.argument.flags                                   =   [-v,-c,-t,amplitude000;crossdelay,h5parm,globaldb]
+
+### Step: 38c
+### --- Export rotationmeasure from h5parm to globaldb-fr
+h5parmexpamp.control.type                                    =   executable_args
+h5parmexpamp.control.executable                              =   {{ scripts }}/H5parm_exporter.py
+h5parmexpamp.control.mapfiles_in                             =   [selfcal-prep.output.h5parmamp,selfcal-prep.output.globaldbamp]
+h5parmexpamp.control.inputkeys                               =   [h5parm,globaldb]
+h5parmexpamp.argument.flags                                  =   [-v,-c,-t,amplitude000;phase000,h5parm,globaldb]
+
+### Step: 37e
+### --- List new solution tables
+listsolCD.control.kind                                       =   plugin                                    # plugin -> short, non-parallel step
+listsolCD.control.type                                       =   createMapfile                             # generate a new mapfile
+listsolCD.control.method                                     =   mapfile_from_folder                       # look for all files in a given directory
+listsolCD.control.folder                                     =   selfcal-prep.output.globaldbCD_folder
+listsolCD.control.mapfile_dir                                =   input.output.mapfile_dir                  # put the mapfile into the runtime directory
+listsolCD.control.filename                                   =   selfcal-listsolCD.mapfile                 # name of the generated mapfile
+listsolCD.control.pattern                                    =   sol000_instrument*   
+
+### Step: 38d
+### --- List new solution tables
+listsolamp.control.kind                                      =   plugin                                    # plugin -> short, non-parallel step
+listsolamp.control.type                                      =   createMapfile                             # generate a new mapfile
+listsolamp.control.method                                    =   mapfile_from_folder                       # look for all files in a given directory
+listsolamp.control.folder                                    =   selfcal-prep.output.globaldbamp_folder
+listsolamp.control.mapfile_dir                               =   input.output.mapfile_dir                  # put the mapfile into the runtime directory
+listsolamp.control.filename                                  =   selfcal-listsolamp.mapfile                # name of the generated mapfile
+listsolamp.control.pattern                                   =   sol000_instrument*   
+
+### Step: 38
+### --- Apply FaradyRotation correction
+apply.control.type                                           =   dppp
+apply.control.inplace                                        =   True
+apply.control.error_tolerance                                =   {{ error_tolerance }}
+apply.control.max_per_node                                   =   {{ max_per_node_limit }}
+apply.control.mapfiles_in                                    =   [listsplit.output.mapfile,selfcal-listsolCD.output.mapfile,selfcal-listsolamp.output.mapfile,selfcal-listsolFR.output.mapfile]
+apply.control.inputkeys                                      =   [infiles,parmdbsCD,parmdbsamp,parmdbsFR]
+apply.argument.numthreads                                    =   {{ max_dppp_threads }}
+apply.argument.msin                                          =   infiles
+apply.argument.msin.datacolumn                               =   SUBTRACTED_DATA
+apply.argument.msout.datacolumn                              =   CORRECTED_DATA
+apply.argument.steps                                         =   [correctCD,correctamp,correctFR]
+apply.argument.correctCD.type                                =   correct
+apply.argument.correctCD.parmdb                              =   parmdbsCD
+apply.argument.correctCD.correction                          =   Gain
+apply.argument.correctamp.type                               =   correct
+apply.argument.correctamp.parmdb                             =   parmdbsamp
+apply.argument.correctamp.correction                         =   Gain
+apply.argument.correctFR.type                                =   correct
+apply.argument.correctFR.parmdb                              =   parmdbsFR
+apply.argument.correctFR.correction                          =   RotationMeasure
+
+### Step: 39a
+### --- Create globaldb out of the VDS files for the instrument tables
+globaldbtec2_loop.control.type                               =   executable_args
+globaldbtec2_loop.control.executable                         =   {{ losoto_directory }}/bin/parmdb_collector.py
+globaldbtec2_loop.control.mapfiles_in                        =   [findvds.output.mapfile,selfcal-prep.output.globaldbtec2]
+globaldbtec2_loop.control.inputkeys                          =   [vds,globaldb]
+globaldbtec2_loop.argument.flags                             =   [-v,-d,vds,-p,instrument-tec,-g,globaldb]
+
+### Step: 39b
+### --- Import globaldb to h5parm
+h5parmtec2_loop.control.type                                 =   executable_args
+h5parmtec2_loop.control.executable                           =   {{ losoto_directory }}/bin/H5parm_importer.py
+h5parmtec2_loop.control.mapfiles_in                          =   [selfcal-prep.output.h5parmtec2,selfcal-prep.output.globaldbtec2]
+h5parmtec2_loop.control.inputkeys                            =   [h5parm,globaldb]
+h5parmtec2_loop.argument.flags                               =   [-v,h5parm,globaldb]
+
+### Step: 39c
+### --- Running losoto to plot
+losotoplot2_loop.control.type                                =   executable_args
+losotoplot2_loop.control.executable                          =   {{ losoto_directory }}/bin/losoto
+losotoplot2_loop.control.parsetasfile                        =   True
+losotoplot2_loop.control.args_format                         =   losoto
+losotoplot2_loop.control.mapfile_in                          =   selfcal-prep.output.h5parmtec2
+losotoplot2_loop.control.inputkey                            =   h5parm
+losotoplot2_loop.argument.flags                              =   [-v,h5parm]
+losotoplot2_loop.argument.LoSoTo.Steps                       =   [plotTEC, plotCSP, plotCSPTEC]
+losotoplot2_loop.argument.LoSoTo.Solset                      =   [sol000]
+losotoplot2_loop.argument.LoSoTo.Soltab                      =   []
+losotoplot2_loop.argument.LoSoTo.SolType                     =   []
+losotoplot2_loop.argument.LoSoTo.ant                         =   []
+losotoplot2_loop.argument.LoSoTo.pol                         =   [XX, YY]
+losotoplot2_loop.argument.LoSoTo.dir                         =   []
+losotoplot2_loop.argument.LoSoTo.Ncpu                        =   {{ max_per_node }}
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Operation  =   PLOT
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Soltab     =   [sol000/scalarphase000]
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Axes       =   time
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.TableAxis  =   ant
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.PlotFlag   =   True
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Prefix     =   selfcal-prep.output.plotstec2/csptec_
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Reference  =   'CS001LBA'
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSPTEC.Add        =   [sol000/tec000]
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.Operation     =   PLOT
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.Soltab        =   [sol000/scalarphase000]
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.Axes          =   time
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.TableAxis     =   ant
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.PlotFlag      =   True
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.Prefix        =   selfcal-prep.output.plotstec2/csp_
+losotoplot2_loop.argument.LoSoTo.Steps.plotCSP.Reference     =   'CS001LBA'
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.Operation     =   PLOT
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.Soltab        =   [sol000/tec000]
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.Axes          =   time
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.TableAxis     =   ant
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.PlotFlag      =   True
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.MinMax        =   [-0.5,0.5]
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.Prefix        =   selfcal-prep.output.plotstec2/tec_
+losotoplot2_loop.argument.LoSoTo.Steps.plotTEC.Reference     =  'CS001LBA'
+
+### Step: 40
+### --- Apply TEC and common scalar phase 
+applytec2_loop.control.type                                  =   dppp
+applytec2_loop.control.inplace                               =   True
+applytec2_loop.control.error_tolerance                       =   {{ error_tolerance }}
+applytec2_loop.control.max_per_node                          =   {{ max_per_node_limit }}
+applytec2_loop.control.mapfiles_in                           =   [listsplit.output.mapfile,listtec.output.mapfile]
+applytec2_loop.control.inputkeys                             =   [infiles,parmdbs]
+applytec2_loop.argument.numthreads                           =   {{ max_dppp_threads }}
+applytec2_loop.argument.msin                                 =   infiles
+applytec2_loop.argument.msin.datacolumn                      =   CORRECTED_DATA
+applytec2_loop.argument.msout.datacolumn                     =   CORRECTED_DATA
+applytec2_loop.argument.steps                                =   [correcttec]
+# applytec2_loop.argument.steps                                =   [correcttec,correctphase]
+applytec2_loop.argument.correcttec.type                      =   applycal
+applytec2_loop.argument.correcttec.parmdb                    =   parmdbs
+applytec2_loop.argument.correcttec.correction                =   tec
+# applytec2_loop.argument.correctphase.type                    =   applycal
+# applytec2_loop.argument.correctphase.parmdb                  =   parmdbs
+# applytec2_loop.argument.correctphase.correction              =   commonscalarphase
+
+### Step: 41
+# High-res imaging loop
+image_high1_loop.control.kind                                =   recipe
+image_high1_loop.control.type                                =   executable_args
+image_high1_loop.control.executable                          =   {{ wsclean_directory }}/bin/wsclean
+image_high1_loop.control.outputsuffixes                      =   [-image.fits,-model.fits]
+image_high1_loop.control.args_format                         =   wsclean
+image_high1_loop.control.max_per_node                        =   1
+image_high1_loop.control.error_tolerance                     =   {{ error_tolerance }}
+image_high1_loop.argument.flags                              =   [-reorder,-no-update-model-required,-joinchannels,listsplit2.output.mapfile]
+image_high1_loop.argument.name                               =   selfcal-prep.output.image_high1
+image_high1_loop.argument.size                               =   3000 3000
+image_high1_loop.argument.trim                               =   2500 2500
+image_high1_loop.argument.mem                                =   {{ max_mem_per_img }}
+image_high1_loop.argument.j                                  =   {{ max_per_node }}
+image_high1_loop.argument.baseline-averaging                 =   2.0
+image_high1_loop.argument.scale                              =   12arcsec
+image_high1_loop.argument.weight                             =   briggs 0.0
+image_high1_loop.argument.niter                              =   100000
+image_high1_loop.argument.maxuv-l                            =   5000
+image_high1_loop.argument.mgain                              =   0.9
+image_high1_loop.argument.pol                                =   I
+image_high1_loop.argument.fit-spectral-pol                   =   2
+image_high1_loop.argument.channelsout                        =   10
+image_high1_loop.argument.auto-threshold                     =   20
+image_high1_loop.argument.minuv-l                            =   30
+
+### Step: 42
+# make mask for the high-res image
+mask_high_loop.control.type                                  =   pythonplugin
+mask_high_loop.control.executable                            =   {{ scripts }}/make_clean_mask.py
+mask_high_loop.control.max_per_node                          =   1
+mask_high_loop.control.error_tolerance                       =   {{ error_tolerance }}
+mask_high_loop.control.mapfile_in                            =   listsplit2.output.mapfile
+mask_high_loop.control.skip_infile                           =   True
+mask_high_loop.argument.flags                                =   [selfcal-prep.output.image_high1_pattern,selfcal-prep.output.image_mask]
+mask_high_loop.argument.threshisl                            =   3.0
+mask_high_loop.argument.threshpix                            =   7.0
+mask_high_loop.argument.atrous_do                            =   True
+mask_high_loop.argument.rmsbox                               =   (55,12)
+mask_high_loop.argument.rmsbox_bright                        =   (30,10)
+mask_high_loop.argument.adaptive_rmsbox                      =   True
+mask_high_loop.argument.img_format                           =   fits
+mask_high_loop.argument.atrous_jmax                          =   3
+
+### Step: 43
+# Second high-res loop imaging
+image_high2_loop.control.kind                                =   recipe
+image_high2_loop.control.type                                =   executable_args
+image_high2_loop.control.executable                          =   {{ wsclean_directory }}/bin/wsclean
+image_high2_loop.control.outputsuffixes                      =   [-image.fits,-model.fits]
+image_high2_loop.control.args_format                         =   wsclean
+image_high2_loop.control.max_per_node                        =   1
+image_high2_loop.control.error_tolerance                     =   {{ error_tolerance }}
+image_high2_loop.argument.flags                              =   [-reorder,-no-update-model-required,-joinchannels,-multiscale,-save-source-list,listsplit2.output.mapfile]
+image_high2_loop.argument.name                               =   selfcal-prep.output.image_high2
+image_high2_loop.argument.fitsmask                           =   selfcal-prep.output.image_mask
+image_high2_loop.argument.size                               =   3000 3000
+image_high2_loop.argument.trim                               =   2500 2500
+image_high2_loop.argument.mem                                =   {{ max_mem_per_img }}
+image_high2_loop.argument.j                                  =   {{ max_per_node }}
+image_high2_loop.argument.baseline-averaging                 =   2.0
+image_high2_loop.argument.scale                              =   12arcsec
+image_high2_loop.argument.weight                             =   briggs 0.0
+image_high2_loop.argument.niter                              =   100000
+image_high2_loop.argument.maxuv-l                            =   5000
+image_high2_loop.argument.mgain                              =   0.8
+image_high2_loop.argument.multiscale-scale-bias              =   0.5
+image_high2_loop.argument.multiscale-scales                  =   0,3,9
+image_high2_loop.argument.pol                                =   I
+image_high2_loop.argument.fit-spectral-pol                   =   2
+image_high2_loop.argument.channelsout                        =   10
+image_high2_loop.argument.auto-threshold                     =   0.1
+image_high2_loop.argument.minuv-l                            =   30
+
+### Step: 44a
+# filter CC model
+filter_model_loop.control.type                               =   pythonplugin
+filter_model_loop.control.executable                         =   {{ scripts }}/filter_model.py
+filter_model_loop.control.error_tolerance                    =   {{ error_tolerance }}
+filter_model_loop.argument.ms                                =   listtemp2.output.mapfile
+filter_model_loop.argument.skymodel                          =   selfcal-prep.output.image_high2_sources
+filter_model_loop.argument.maskname                          =   selfcal-prep.output.image_mask
+filter_model_loop.argument.skymodel_cut                      =   selfcal-prep.output.filter_model
+filter_model_loop.argument.scripts                           =   {{ scripts }}
+
+### Step: 44b
+### --- Create skymodel for calibrator
+make_sourcedb_target_loop.control.kind                       =   recipe
+make_sourcedb_target_loop.control.type                       =   executable_args
+make_sourcedb_target_loop.control.executable                 =   {{ lofar_directory }}/bin/makesourcedb
+make_sourcedb_target_loop.control.error_tolerance            =   {{ error_tolerance }}
+make_sourcedb_target_loop.control.args_format                =   lofar
+make_sourcedb_target_loop.control.mapfile_in                 =   listsplit2.output.mapfile
+make_sourcedb_target_loop.control.skip_infile                =   True
+make_sourcedb_target_loop.argument.format                    =   <
+make_sourcedb_target_loop.argument.outtype                   =   blob
+make_sourcedb_target_loop.argument.in                        =   selfcal-prep.output.filter_model
+make_sourcedb_target_loop.argument.out                       =   selfcal-prep.output.sourcedb_target
+
+### Step: 45
+### --- Add selfcal-target model to MODEL_DATA
+predicttar_high_loop.control.type                            =   dppp
+predicttar_high_loop.control.inplace                         =   True
+predicttar_high_loop.control.max_per_node                    =   {{ max_per_node_limit }}
+predicttar_high_loop.control.error_tolerance                 =   {{ error_tolerance }}
+predicttar_high_loop.argument.numthreads                     =   {{ max_dppp_threads }}
+predicttar_high_loop.argument.msin                           =   listsplit.output.mapfile
+predicttar_high_loop.argument.msin.baseline                  =   [CR]S*&
+predicttar_high_loop.argument.msin.datacolumn                =   DATA
+predicttar_high_loop.argument.msout.datacolumn               =   MODEL_DATA
+predicttar_high_loop.argument.steps                          =   [predict]
+predicttar_high_loop.argument.predict.type                   =   predict
+predicttar_high_loop.argument.predict.sourcedb               =   selfcal-prep.output.sourcedb_target
+predicttar_high_loop.argument.predict.usebeammodel           =   False
+predicttar_high_loop.argument.predict.usechannelfreq         =   True
+predicttar_high_loop.argument.predict.beammode               =   array_factor
+
+### Step: 46
+# deep beam-corrected imaging
+image_deep.control.kind                                      =   recipe
+image_deep.control.type                                      =   executable_args
+image_deep.control.executable                                =   {{ wsclean_directory }}/bin/wsclean
+image_deep.control.outputsuffixes                            =   [-image.fits,-model.fits]
+image_deep.control.outputkey                                 =   name
+image_deep.control.args_format                               =   wsclean
+image_deep.control.max_per_node                              =   1
+image_deep.control.error_tolerance                           =   {{ error_tolerance }}
+image_deep.control.mapfile_in                                =   listsplit2.output.mapfile
+image_deep.control.inputkey                                  =   infiles
+image_deep.argument.flags                                    =   [-no-update-model-required,-multiscale,-joinchannels,-apply-primary-beam,-use-differential-lofar-beam,infiles]
+image_deep.argument.name                                     =   selfcal-prep.output.image_high1
+image_deep.argument.size                                     =   4000 4000
+image_deep.argument.trim                                     =   3500 3500
+image_deep.argument.mem                                      =   {{ max_mem_per_img }}
+image_deep.argument.j                                        =   {{ max_per_node }}
+image_deep.argument.scale                                    =   8arcsec
+image_deep.argument.weight                                   =   briggs 0.0
+image_deep.argument.niter                                    =   100000
+image_deep.argument.mgain                                    =   0.8
+image_deep.argument.multiscale-scale-bias                    =   0.5
+image_deep.argument.multiscale-scales                        =   0,3,9
+image_deep.argument.pol                                      =   I
+image_deep.argument.fit-spectral-pol                         =   2
+image_deep.argument.channelsout                              =   10
+image_deep.argument.auto-threshold                           =   1
+image_deep.argument.auto-mask                                =   10
+image_deep.argument.minuv-l                                  =   30
+
+### Step: 47
+# high-res deep beam-corrected imaging
+image_deep_high.control.kind                                 =   recipe
+image_deep_high.control.type                                 =   executable_args
+image_deep_high.control.executable                           =   {{ wsclean_directory }}/bin/wsclean
+image_deep_high.control.outputsuffixes                       =   [-image.fits,-model.fits]
+image_deep_high.control.outputkey                            =   name
+image_deep_high.control.args_format                          =   wsclean
+image_deep_high.control.max_per_node                         =   1
+image_deep_high.control.error_tolerance                      =   {{ error_tolerance }}
+image_deep_high.control.mapfile_in                           =   listsplit2.output.mapfile
+image_deep_high.control.inputkey                             =   infiles
+image_deep_high.argument.flags                               =   [-no-update-model-required,-multiscale,-joinchannels,-apply-primary-beam,-use-differential-lofar-beam,infiles]
+image_deep_high.argument.name                                =   selfcal-prep.output.image_high1
+image_deep_high.argument.size                                =   6000 6000
+image_deep_high.argument.trim                                =   5500 5500
+image_deep_high.argument.mem                                 =   {{ max_mem_per_img }}
+image_deep_high.argument.j                                   =   {{ max_per_node }}
+image_deep_high.argument.scale                               =   4arcsec
+image_deep_high.argument.weight                              =   briggs -1.5
+image_deep_high.argument.niter                               =   100000
+image_deep_high.argument.mgain                               =   0.8
+image_deep_high.argument.multiscale-scale-bias               =   0.5
+image_deep_high.argument.multiscale-scales                   =   0,3,9
+image_deep_high.argument.pol                                 =   I
+image_deep_high.argument.fit-spectral-pol                    =   2
+image_deep_high.argument.channelsout                         =   10
+image_deep_high.argument.auto-threshold                      =   1
+image_deep_high.argument.auto-mask                           =   10
+image_deep_high.argument.minuv-l                             =   30
+
+###############################################################################################################################################################################################################################################################
+#                                                                                                                                                                                                                                                            ##
+#                                                                                                    End of selfcal pipeline                                                                                                                                 ##
+#                                                                                                                                                                                                                                                            ##
 ################################################################################################################################################################################################################################################################

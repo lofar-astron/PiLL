@@ -1,0 +1,22 @@
+################################################################################################################################################################################################################################################################
+##                                                                                                                                                                                                                                                            ##
+##                                                                                                    Beginning of selfcal_loop pipeline                                                                                                                      ##
+##                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
+
+### Steps to run
+#pipeline.steps = [prep_loop, smoothtar_loop, teccal, globaldbtec_loop, ]
+pipeline.steps = [steps]
+
+# now perform self-calibration in a loop
+steps.control.kind                                       =   loop
+steps.control.type                                       =   conditional
+steps.control.loopcount                                  =   {{ niter }}
+steps.control.loopsteps                                  =   [selfcal-prep, selfcal-smoothtar_loop, selfcal-teccal, selfcal-globaldbtec_loop, selfcal-globaldbFR, selfcal-h5parmtec_loop, selfcal-losotoplot_loop, selfcal-applytec_loop, selfcal-lintocirc, selfcal-smooth, selfcal-smoothcal, selfcal-globaldb, selfcal-h5parmFR, selfcal-losotoFR, selfcal-h5parmexpFR, selfcal-listsolFR, selfcal-circtolin, selfcal-applyFR, selfcal-smooth, selfcal-smoothcal, selfcal-globaldbCD, selfcal-globaldbamp, selfcal-h5parmCD, selfcal-losotoCD, selfcal-h5parmexpCD, selfcal-listsolCD, selfcal-h5parmamp, selfcal-losotoamp, selfcal-h5parmexpamp, selfcal-listsolamp, selfcal-apply, selfcal-smoothtar_loop, selfcal-teccal, selfcal-globaldbtec2_loop, selfcal-h5parmtec2_loop, selfcal-losotoplot2_loop, selfcal-applytec2_loop, selfcal-image_high1_loop, selfcal-mask_high_loop, selfcal-image_high2_loop, selfcal-filter_model_loop, selfcal-make_sourcedb_target_loop, selfcal-predicttar_high_loop]
+
+
+###############################################################################################################################################################################################################################################################
+#                                                                                                                                                                                                                                                            ##
+#                                                                                                    End of selfcal_loop pipeline                                                                                                                            ##
+#                                                                                                                                                                                                                                                            ##
+################################################################################################################################################################################################################################################################
