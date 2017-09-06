@@ -8,7 +8,7 @@ Currently available parts of the pipeline:
 ------------------------------------------
 * calibrator
 * time_split
-* selfcal (first imaging)
+* selfcal
 
 Installation and Usage
 ----------------------
