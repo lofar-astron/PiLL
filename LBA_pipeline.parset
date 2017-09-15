@@ -33,6 +33,7 @@ pipeline.pluginpath   = {{ local_directory }}/plugins                           
 !target_pattern       = L368146*.MS                                              ## regular expression pattern of all your target files
 !target_template      = L368146_SB150_uv.dppp.MS                                 ## just pick a single MS of your calibrator files and put the name here
 !bad_stations         = ;!CS031LBA*&&*;!RS210LBA*&&*;!RS310LBA*&&*;!RS409LBA*&&* ## filter list of bad stations (beginn with ;! and add ;! for every other station)
+!reference_station    = 'CS001LBA'                                               ## pick a reference station for plotting/calibration
 
 ### Parameter setup -- computing performance
 !max_per_node         = input.output.max_per_node                                ## this is defined in the pipeline.cfg
@@ -71,6 +72,7 @@ calibrator.argument.scripts                  =   {{ scripts }}
 calibrator.argument.calibrator_pattern       =   {{ calibrator_pattern }}
 calibrator.argument.calibrator_template      =   {{ calibrator_template }}
 calibrator.argument.bad_stations             =   {{ bad_stations }}
+calibrator.argument.reference_station        =   {{ reference_station }}
 calibrator.argument.max_per_node             =   {{ max_per_node }}
 calibrator.argument.max_dppp_threads         =   {{ max_dppp_threads }}
 calibrator.argument.max_per_node_limit       =   {{ max_per_node_limit }}
@@ -118,6 +120,7 @@ selfcal.argument.wsclean_directory           =   {{ wsclean_directory }}
 selfcal.argument.target_directory            =   {{ target_directory }}
 selfcal.argument.scripts                     =   {{ scripts }}
 selfcal.argument.target_template             =   {{ target_template }}
+selfcal.argument.reference_station           =   {{ reference_station }}
 selfcal.argument.max_per_node                =   {{ max_per_node }}
 selfcal.argument.max_dppp_threads            =   {{ max_dppp_threads }}
 selfcal.argument.max_per_node_limit          =   {{ max_per_node_limit }}
