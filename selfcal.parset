@@ -5,7 +5,7 @@
 ################################################################################################################################################################################################################################################################
 
 ### Steps to run
-pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,listcolumn,listinst,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losotoplot,applytec,image_high1,createmap_high_image,mask_high,image_high2,listmodel,filter_model,make_sourcedb_target,listsourcedbtar3,predicttar_high,subtract_model,image_low,createmap_low_image,listmodel_low,mask_low,filter_model_low,make_sourcedb_target_low,listsourcedbtar4,predicttar_low,corrupt_model,subtract_model_low,restore_model,loop,image_deep,image_deep_high]
+pipeline.steps = [listsplit,listsplit2,listtemp2,listFRtar,listtec,listcolumn,listinst,addcol,sky_tar,sourcedbtar,listsourcedbtar2,predicttar,parmdbFRtar,fixFRtar,smoothtar,teccal,makevdstar,findvds,globaldbtec,h5parmtec,losotoplot,applytec,image_high1,createmap_high_image,mask_high,image_high2,listmodel,delete_model_col,filter_model,make_sourcedb_target,listsourcedbtar3,predicttar_high,subtract_model,image_low,createmap_low_image,listmodel_low,mask_low,delete_model_col_low,filter_model_low,make_sourcedb_target_low,listsourcedbtar4,predicttar_low,corrupt_model,subtract_model_low,restore_model,loop,image_deep,image_deep_high]
 
 ################################################################################################################################################################################################################################################################
 ################################################################################################################################################################################################################################################################
@@ -311,7 +311,7 @@ mask_high.control.type                                       =   pythonplugin
 mask_high.control.executable                                 =   {{ scripts }}/make_clean_mask.py
 mask_high.control.max_per_node                               =   1
 mask_high.control.error_tolerance                            =   {{ error_tolerance }}
-mask_high.control.mapfile_in                                 =   image_high1.output.image_high1-image.fits.mapfile
+mask_high.control.mapfile_in                                 =   createmap_high_image.output.mapfile
 mask_high.control.inputkey                                   =   imagefile
 mask_high.control.outputkey                                  =   maskfile
 mask_high.argument.flags                                     =   [imagefile,maskfile]
@@ -367,6 +367,16 @@ listmodel.control.filename                                   =   listmodel.mapfi
 listmodel.control.pattern                                    =   *image_high2-sources.txt
 
 ### Step: 14b
+# remove LogarithmicSI column from the skymodel
+delete_model_col.control.type                                =   pythonplugin
+delete_model_col.control.executable                          =   {{ scripts }}/delete_model_column.py
+delete_model_col.control.error_tolerance                     =   {{ error_tolerance }}
+delete_model_col.control.mapfile_in                          =   listmodel.output.mapfile
+delete_model_col.control.inputkey                            =   inmodel
+delete_model_col.argument.skymodel                           =   inmodel
+delete_model_col.argument.col_to_delete                      =   LogarithmicSI
+
+### Step: 14c
 # filter CC model
 filter_model.control.type                                    =   pythonplugin
 filter_model.control.executable                              =   {{ scripts }}/filter_model.py
@@ -495,6 +505,16 @@ mask_low.argument.img_format                                 =   fits
 mask_low.argument.atrous_jmax                                =   3
 
 ### Step: 19d
+# remove LogarithmicSI column from the skymodel
+delete_model_col_low.control.type                            =   pythonplugin
+delete_model_col_low.control.executable                      =   {{ scripts }}/delete_model_column.py
+delete_model_col_low.control.error_tolerance                 =   {{ error_tolerance }}
+delete_model_col_low.control.mapfile_in                      =   listmodel_low.output.mapfile
+delete_model_col_low.control.inputkey                        =   inmodel
+delete_model_col_low.argument.skymodel                       =   inmodel
+delete_model_col_low.argument.col_to_delete                  =   LogarithmicSI
+
+### Step: 19e
 # filter CC model
 filter_model_low.control.type                                =   pythonplugin
 filter_model_low.control.executable                          =   {{ scripts }}/filter_model.py
@@ -1279,6 +1299,14 @@ image_high2_loop.argument.auto-threshold                     =   0.1
 image_high2_loop.argument.minuv-l                            =   30
 
 ### Step: 44a
+# remove LogarithmicSI column from the skymodel
+delete_model_col_loop.control.type                           =   pythonplugin
+delete_model_col_loop.control.executable                     =   {{ scripts }}/delete_model_column.py
+delete_model_col_loop.control.error_tolerance                =   {{ error_tolerance }}
+delete_model_col_loop.argument.skymodel                      =   selfcal-prep.output.image_high2_sources
+delete_model_col_loop.argument.col_to_delete                 =   LogarithmicSI
+
+### Step: 44b
 # filter CC model
 filter_model_loop.control.type                               =   pythonplugin
 filter_model_loop.control.executable                         =   {{ scripts }}/filter_model.py
@@ -1289,7 +1317,7 @@ filter_model_loop.argument.maskname                          =   selfcal-prep.ou
 filter_model_loop.argument.skymodel_cut                      =   selfcal-prep.output.filter_model
 filter_model_loop.argument.scripts                           =   {{ scripts }}
 
-### Step: 44b
+### Step: 44c
 ### --- Create skymodel for calibrator
 make_sourcedb_target_loop.control.kind                       =   recipe
 make_sourcedb_target_loop.control.type                       =   executable_args
